@@ -1,0 +1,23 @@
+[package]
+name = "rusty-vit"
+version = "0.1.0"
+edition= "2024"
+rust-version = "1.88.0"
+homepage = "https://github.com/RustyViT"
+
+[dependencies]
+log =  { workspace = true }
+rayon = {workspace = true, optional = true }
+rand = { workspace = true }
+num = { workspace = true }
+cudarc = { workspace = true, optional = true, features = ["cublas", "nvrtc", "cuda-version-from-build-system", "std", "dynamic-linking"] }
+
+[build-dependencies]
+cc = "1.2.37"
+glob = "0.3.3"
+
+[features]
+default = ["cpu"]
+cpu = ["dep:rayon"]
+cuda = ["dep:cudarc"]
+

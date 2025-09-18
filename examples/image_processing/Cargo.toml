@@ -1,0 +1,16 @@
+[package]
+name = "image_processing"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88.0"
+publish = false
+
+[[bin]]
+name = "image_processing"
+path = "src/main.rs"
+test = false
+bench = false
+doc = false
+
+[dependencies]
+rusty-vit = { workspace = true }
