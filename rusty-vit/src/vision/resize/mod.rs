@@ -12,7 +12,7 @@ struct Bilinear {}
  impl InterpMode for Bilinear {}
 
 pub(crate) trait ResizeKernel<T, I: InterpMode>: DeviceStorage<T> {
-    fn resize(&mut self, src: &mut Image<T, Self>, dst_width: usize, dst_height: usize) -> Self::Vec
+    fn resize(&mut self, src: &mut Image<T, Self>, dst_width: usize, dst_height: usize) -> Image<T, Self>
     where
         Self: Sized;
 }
@@ -39,58 +39,64 @@ impl Resize {
 }
 
 impl Resize {
-    fn resize<T: PixelType, I: InterpMode, S: ResizeKernel<T, I>>(&self, image: &mut Image<T, S>) {
+    fn resize<T: PixelType, I: InterpMode, S: ResizeKernel<T, I>>(&self, image: &mut Image<T, S>) -> Image<T, S> {
         let dev = &mut image.device.clone();
-        dev.resize(image, self.dst_width, self.dst_height);
+        dev.resize(image, self.dst_width, self.dst_height)
     }
 }
 
-/*mod tests {
+mod tests {
+    use crate::device::cpu::Cpu;
+    use crate::device::cuda::Cuda;
     use super::*;
 
     #[test]
-    fn test_transpose() {
-        let input = &mut [255, 127, 68, 34, 228, 189, 45, 6, 0, 4, 21, 90];
-        let dst = Resize::transpose(input, 4, 3);
-        assert_eq!(dst, &[255, 228, 0, 127, 189, 4, 68, 45, 21, 34, 6, 90]);
-    }
-
-    #[test]
     fn test_resize_upsample() {
-        let filter = BilinearFilterType::default();
-        let resizer = Resize::new(2, 2, 3, 4, filter);
+        //let dev = Cpu::default();
+        let dev = Cuda::try_new(0).unwrap();
+        let resizer = Resize::new(3, 4);
         let src = &[255, 0, 255, 255];
-        let dst = resizer.resize(src);
+        let mut img = Image::try_from_slice(src, 1, 2, 2, 1, &dev).unwrap();
+        let rz_img = resizer.resize::<u8, Bilinear, _>(&mut img);
         assert_eq!(
-            dst,
+            &rz_img.try_get_data().unwrap(),
             &[255, 128, 0, 255, 160, 64, 255, 223, 191, 255, 255, 255]
         );
     }
 
     #[test]
     fn test_resize_downsample() {
-        let filter = BilinearFilterType::default();
-        let resizer = Resize::new(3, 4, 2, 2, filter);
+        //let dev = Cpu::default();
+        let dev = Cuda::try_new(0).unwrap();
+        let resizer = Resize::new(2, 2);
         let src = &[255, 255, 0, 255, 255, 0, 255, 255, 0, 0, 0, 0];
-        let dst = resizer.resize(src);
-        assert_eq!(dst, &[255, 96, 146, 55]);
+        let mut img = Image::try_from_slice(src, 1, 3, 4, 1, &dev).unwrap();
+        let rz_img = resizer.resize::<u8, Bilinear, _>(&mut img);
+        assert_eq!(
+            &rz_img.try_get_data().unwrap(),
+            &[255, 96, 146, 55]
+        );
     }
 
     #[test]
     fn test_resize_y_axis_only() {
-        let filter = BilinearFilterType::default();
-        let resizer = Resize::new(3, 3, 3, 4, filter);
+        let dev = Cpu::default();
+        let resizer = Resize::new(3, 4);
         let src = &[255, 255, 0, 255, 255, 0, 0, 0, 0];
-        let dst = resizer.resize(src);
-        assert_eq!(dst, &[255, 255, 0, 255, 255, 0, 159, 159, 0, 0, 0, 0]);
+        let mut img = Image::try_from_slice(src, 1, 3, 3, 1, &dev).unwrap();
+        let rz_img = resizer.resize::<u8, Bilinear, _>(&mut img);
+        assert_eq!(
+            &rz_img.try_get_data().unwrap(),
+            &[255, 255, 0, 255, 255, 0, 159, 159, 0, 0, 0, 0]
+        );
     }
+}
 
-    #[test]
-    fn test_resize_x_axis_only() {
-        let filter = BilinearFilterType::default();
-        let resizer = Resize::new(3, 3, 4, 3, filter);
-        let src = &[255, 255, 0, 255, 255, 0, 0, 0, 0];
-        let dst = resizer.resize(src);
-        assert_eq!(dst, &[255, 255, 159, 0, 255, 255, 159, 0, 0, 0, 0, 0]);
-    }
-}*/
+/*#[test]
+   fn test_transpose() {
+       let input = &mut [255, 127, 68, 34, 228, 189, 45, 6, 0, 4, 21, 90];
+       let dst = Resize::transpose(input, 4, 3);
+       assert_eq!(dst, &[255, 228, 0, 127, 189, 4, 68, 45, 21, 34, 6, 90]);
+   }*/
+
+

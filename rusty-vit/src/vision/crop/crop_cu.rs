@@ -5,6 +5,8 @@ use std::env;
 use cudarc::driver::{LaunchConfig, PushKernelArg};
 use crate::device::cu_utils::*;
 
+const CROP_PTX: &str = include_str!(concat!(env!("OUT_DIR"), "/crop.ptx"));
+
 trait KernelOp<T: PixelType> {
     const KERNEL_NAME: &'static str;
 }
@@ -29,14 +31,9 @@ impl<T: PixelType> super::CropKernel<T> for Cuda
         crop_height: usize,
         x: usize,
         y: usize,
-    ) -> Self::Vec
+    ) -> Image<T, Self>
     {
-        let k_path = format!(
-            "{}/{}",
-            env::current_dir().unwrap().to_str().unwrap(),
-            "crop.cu"
-        );
-        let k_func = self.register_kernel(k_path.as_str(), Self::KERNEL_NAME);
+        let k_func = self.register_kernel(CROP_PTX, Self::KERNEL_NAME);
 
         let block_dim = (32, 8, 1);
         let grid_dim = (
@@ -45,18 +42,16 @@ impl<T: PixelType> super::CropKernel<T> for Cuda
             1,
         );
 
-        let crop_dmem = src
-            .device
-            .try_alloc(src.batch_size * src.channels * crop_width * crop_height)
+        let crop_img = Image::try_new(src.batch_size, src.channels, crop_width, crop_height, self)
             .unwrap();
         for b in 0..src.batch_size {
-            let slice_base = b * src.channels * src.width * src.height;
-            let crop_slice_base = b * src.channels * crop_width * crop_height;
+            let slice_base = b * src.strides[0];
+            let crop_slice_base = b * crop_img.strides[0];
             for c in 0..src.channels {
-                let slice_end = slice_base + c * src.width * src.height;
-                let crop_slice_end = crop_slice_base + c * crop_width * crop_height;
-                let s = src.data.slice(slice_base..slice_end);
-                let cs = crop_dmem.slice(crop_slice_base..crop_slice_end);
+                let slice_start = slice_base + c * src.strides[1];
+                let crop_slice_start = crop_slice_base + c * crop_img.strides[1];
+                let s = src.data.slice(slice_start..slice_start + src.strides[1]);
+                let cs = crop_img.data.slice(crop_slice_start..crop_slice_start + crop_img.strides[1]);
                 let mut builder = self.stream0.launch_builder(&k_func);
                 builder
                     .arg(&s)
@@ -74,6 +69,6 @@ impl<T: PixelType> super::CropKernel<T> for Cuda
                 unsafe { builder.launch(cfg) }.unwrap();
             }
         }
-        crop_dmem
+        crop_img
     }
 }

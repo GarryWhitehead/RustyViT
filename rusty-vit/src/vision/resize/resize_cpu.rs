@@ -1,8 +1,8 @@
-use rayon::iter::IndexedParallelIterator;
 use crate::device::DeviceStorage;
 use crate::device::cpu::Cpu;
 use crate::image::{Image, PixelType};
 use crate::vision::resize::{Bilinear, InterpMode};
+use rayon::iter::IndexedParallelIterator;
 use rayon::prelude::*;
 
 trait InterpOp<I: InterpMode> {
@@ -28,21 +28,14 @@ where
         src: &mut Image<T, Self>,
         dst_width: usize,
         dst_height: usize,
-    ) -> Self::Vec {
-        let image_size = src.width * src.height;
-        let chunk_size = src.channels * image_size;
-
-        let resize_image_size = dst_width * dst_height;
-        let resize_chunk_size = src.channels * resize_image_size;
-        let mut resize_data = src
-            .device
-            .try_alloc(src.batch_size * resize_chunk_size)
-            .unwrap();
+    ) -> Image<T, Self> {
+        let mut rz_img =
+            Image::try_new(src.batch_size, dst_width, dst_height, src.channels, self).unwrap();
         src.data
-            .par_chunks(chunk_size)
-            .zip(resize_data.data.par_chunks_mut(resize_chunk_size))
+            .par_chunks(src.strides[0])
+            .zip(rz_img.data.par_chunks_mut(rz_img.strides[0]))
             .for_each(|(in_slice, out_slice)| {
-                self.resize_kernel(
+                let tmp = self.resize_kernel(
                     in_slice,
                     src.channels,
                     src.width,
@@ -50,8 +43,9 @@ where
                     dst_width,
                     dst_height,
                 );
+                out_slice.copy_from_slice(tmp.as_slice());
             });
-        resize_data
+        rz_img
     }
 }
 
@@ -98,7 +92,6 @@ impl Cpu {
         dst_width: usize,
         dst_height: usize,
     ) -> <Cpu as DeviceStorage<T>>::Vec {
-
         let (vert_k_size, mut vert_bounds, vert_coeffs) =
             Self::compute_coeffs(src_height as i32, dst_height as i32);
         let (horiz_k_size, horiz_bounds, horiz_coeffs) =
@@ -164,7 +157,12 @@ impl Cpu {
         temp_image
     }
 
-    fn transpose<T: PixelType>(&self, input: &[T], width: usize, height: usize) -> <Cpu as DeviceStorage<T>>::Vec {
+    fn transpose<T: PixelType>(
+        &self,
+        input: &[T],
+        width: usize,
+        height: usize,
+    ) -> <Cpu as DeviceStorage<T>>::Vec {
         assert_eq!(input.len(), width * height);
         let mut dst = self.try_alloc(width * height).unwrap();
         for n in 0..width * height {

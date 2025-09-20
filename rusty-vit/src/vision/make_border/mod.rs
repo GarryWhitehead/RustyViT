@@ -8,7 +8,12 @@ use crate::image::PixelType;
 use crate::vision::Image;
 
 pub trait MakeBorderKernel<T, I>: DeviceStorage<T> {
-    fn make_border(&mut self, src: &Image<T, Self>, padding: usize, fill_value: T) -> Self::Vec
+    fn make_border(
+        &mut self,
+        src: &Image<T, Self>,
+        padding: usize,
+        fill_value: T,
+    ) -> Image<T, Self>
     where
         Self: Sized;
 }
@@ -44,7 +49,7 @@ impl<T: PixelType> MakeBorder<T> {
     pub fn process<B: BorderMode, S: MakeBorderKernel<T, B>>(
         &self,
         src: &mut Image<T, S>,
-    ) -> S::Vec {
+    ) -> Image<T, S> {
         if 2 * self.padding >= src.width || 2 * self.padding >= src.height {
             panic!("Padding size must be less than the image dimensions");
         }
@@ -55,12 +60,15 @@ impl<T: PixelType> MakeBorder<T> {
 
 mod tests {
     use super::*;
+    #[cfg(feature = "cuda")]
+    use crate::device::cuda::Cuda;
 
     #[test]
     fn test_make_border_one_pad() {
         let dev = Cpu::default();
+        //let dev = Cuda::try_new(0).unwrap();
         let mb = MakeBorder::new(1, 0);
-        let mut src: Image<u8, Cpu> = Image::try_from_slice(
+        let mut src: Image<u8, _> = Image::try_from_slice(
             &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
             1,
             4,
@@ -71,8 +79,11 @@ mod tests {
         .unwrap();
         let dst = mb.process::<Constant, _>(&mut src);
         assert_eq!(
-            &dst.data,
-            &[0, 0, 0, 0, 0, 6, 7, 0, 0, 10, 11, 0, 0, 0, 0, 0]
+            &dst.try_get_data().unwrap(),
+            &[
+                0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 0, 0, 5, 6, 7, 8, 0, 0, 9, 10, 11, 12, 0, 0, 13,
+                14, 15, 16, 0, 0, 0, 0, 0, 0, 0,
+            ]
         );
     }
 
@@ -80,8 +91,39 @@ mod tests {
     fn test_make_border_none_power_two_dims() {
         let dev = Cpu::default();
         let mb = MakeBorder::new(1, 0);
-        let mut src: Image<u8, Cpu> = Image::try_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9], 1, 3, 3, 1, &dev).unwrap();
+        let mut src: Image<u8, _> =
+            Image::try_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9], 1, 3, 3, 1, &dev).unwrap();
         let dst = mb.process::<Constant, _>(&mut src);
-        assert_eq!(&dst.data, &[0, 0, 0, 0, 5, 0, 0, 0, 0]);
+        assert_eq!(
+            &dst.try_get_data().unwrap(),
+            &[
+                0, 0, 0, 0, 0, 0, 1, 2, 3, 0, 0, 4, 5, 6, 0, 0, 7, 8, 9, 0, 0, 0, 0, 0, 0
+            ]
+        );
+    }
+
+    #[test]
+    fn test_make_border_batched() {
+        //let dev = Cuda::try_new(0).unwrap();
+        let dev = Cpu::default();
+        let (b, c, w, h) = (20, 3, 3, 3);
+        let template = &[1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let mut src = vec![0u8; b * c * w * h];
+        src.chunks_mut(w * h).for_each(|p| {
+            p.copy_from_slice(template);
+        });
+        let mut img: Image<u8, _> =
+            Image::try_from_slice(&src, 20, 3, 3, 3, &dev).unwrap();
+        let mb = MakeBorder::new(1, 0);
+        let mb_img = mb.process::<Constant, _>(&mut img);
+        let dst = mb_img.try_get_data().unwrap();
+        dst.chunks(mb_img.width * mb_img.height).for_each(|p| {
+            assert_eq!(
+                p,
+                &[
+                    0, 0, 0, 0, 0, 0, 1, 2, 3, 0, 0, 4, 5, 6, 0, 0, 7, 8, 9, 0, 0, 0, 0, 0, 0
+                ]
+            );
+        })
     }
 }

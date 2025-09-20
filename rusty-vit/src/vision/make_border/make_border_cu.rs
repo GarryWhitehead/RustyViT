@@ -10,6 +10,8 @@ trait KernelOp<T: PixelType, B: BorderMode> {
     const KERNEL_NAME: &'static str;
 }
 
+const MAKE_BORDER_PTX: &str = include_str!(concat!(env!("OUT_DIR"), "/make_border.ptx"));
+
 impl KernelOp<u8, super::Constant> for Cuda {
     const KERNEL_NAME: &'static str = "make_constant_border_kernel_u8";
 }
@@ -42,14 +44,9 @@ impl<T: PixelType, B: BorderMode> super::MakeBorderKernel<T, B> for Cuda
 where
     Self: KernelOp<T, B>,
 {
-    fn make_border(&mut self, src: &Image<T, Self>, padding: usize, fill_value: T) -> Self::Vec
+    fn make_border(&mut self, src: &Image<T, Self>, padding: usize, fill_value: T) -> Image<T, Self>
     {
-        let k_path = format!(
-            "{}/{}",
-            env::current_dir().unwrap().to_str().unwrap(),
-            "crop.cu"
-        );
-        let k_func = self.register_kernel(k_path.as_str(), Self::KERNEL_NAME);
+        let k_func = self.register_kernel(MAKE_BORDER_PTX, Self::KERNEL_NAME);
 
         let block_dim = (32, 8, 1);
         let grid_dim = (
@@ -60,18 +57,19 @@ where
         
         let dst_width = src.width + 2 * padding;
         let dst_height = src.height + 2 * padding;
-        let dst_dmem = src
-            .device
-            .try_alloc(src.batch_size * src.channels * dst_width * dst_height)
-            .unwrap();
+        let mb_img = Image::try_new(src.batch_size, dst_width, dst_height, src.channels, self).unwrap();
+
         for b in 0..src.batch_size {
-            let slice_base = b * src.width * src.height;
-            let dst_slice_base = b * dst_width * dst_height;
+            let slice_base = b * src.strides[0];
+            let dst_slice_base = b * mb_img.strides[0];
             for c in 0..src.channels {
-                let slice_end = slice_base + c * src.width * src.height;
-                let crop_slice_end = dst_slice_base + c * dst_width * dst_height;
-                let src_view = src.data.slice(slice_base..slice_end);
-                let dst_view = dst_dmem.slice(dst_slice_base..crop_slice_end);
+                let src_slice_start = slice_base + c * src.strides[1];
+                let dst_slice_start = dst_slice_base + c * mb_img.strides[1];
+                let src_slice_end = src_slice_start + src.strides[1];
+                let dst_slice_end = dst_slice_start + mb_img.strides[1];
+                let src_view = src.data.slice(src_slice_start..src_slice_end);
+                let dst_view = mb_img.data.slice(dst_slice_start..dst_slice_end);
+
                 let mut builder = self.stream0.launch_builder(&k_func);
                 builder
                     .arg(&src_view)
@@ -87,6 +85,6 @@ where
                 unsafe { builder.launch(cfg) }.unwrap();
             }
         }
-        dst_dmem
+        mb_img
     }
 }

@@ -6,9 +6,10 @@ use crate::vision::{Image};
 use rand::Rng;
 use rand::distr::Uniform;
 use crate::device::DeviceStorage;
+use crate::image::PixelType;
 
 pub trait CropKernel<T>: DeviceStorage<T> {
-    fn crop(&mut self, src: &mut Image<T, Self>, crop_width: usize, crop_height: usize, x: usize, y: usize)  -> Self::Vec
+    fn crop(&mut self, src: &mut Image<T, Self>, crop_width: usize, crop_height: usize, x: usize, y: usize)  -> Image<T, Self>
     where
         Self: Sized;
 }
@@ -21,22 +22,22 @@ struct RandomCrop {
 }
 
 impl RandomCrop {
-    pub fn new(dim: usize, crop_width: usize, crop_height: usize) -> Self {
-        if crop_width > dim {
+    pub fn new(width: usize, height: usize, crop_width: usize, crop_height: usize) -> Self {
+        if crop_width > width {
             panic!(
                 "Crop width must be less than the src dimensions; crop_width: {crop_width} vs \
-                image dim: {dim}"
+                image dim: {width}"
             );
         }
-        if crop_height > dim {
+        if crop_height > height {
             panic!(
                 "Crop height must be less than the src dimensions; crop_height: {crop_height} \
-            vs image dim: {dim}"
+            vs image dim: {height}"
             );
         };
 
-        let uniform_x = Uniform::try_from(0..dim - crop_width + 1).unwrap();
-        let uniform_y = Uniform::try_from(0..dim - crop_height + 1).unwrap();
+        let uniform_x = Uniform::try_from(0..width - crop_width + 1).unwrap();
+        let uniform_y = Uniform::try_from(0..height - crop_height + 1).unwrap();
         let mut rng = rand::rng();
         Self {
             crop_width,
@@ -45,20 +46,50 @@ impl RandomCrop {
             y: rng.sample(uniform_y),
         }
     }
+
+    pub fn crop<P: PixelType, D: CropKernel<P>>(&self, src: &mut Image<P, D>) -> Image<P, D> {
+        let dev = &mut src.device.clone();
+        dev.crop(src, self.crop_width, self.crop_height, self.x, self.y)
+    }
 }
 
-/*mod tests {
+mod tests {
+    #[cfg(feature = "cuda")]
+    use crate::device::cuda::Cuda;
+    use crate::device::cpu::Cpu;
     use super::*;
 
     #[test]
-    fn test_crop_matching_dims() {
+    fn test_crop() {
         let src = &[1, 2, 3, 4, 5, 6, 7, 8, 9];
-        let mut dst = vec![0u8; 3 * 3];
-        crop(src, 3, 3, 3, 0, 0, &mut dst);
-        assert_eq!(dst, src);
+        //let dev = Cuda::try_new(0).unwrap();
+        let dev = Cpu::default();
+        let cropper = RandomCrop::new(3, 3, 3, 3);
+        let mut img: Image<u8, _> = Image::try_from_slice(src, 1, 3, 3, 1, &dev).unwrap();
+        let dst = cropper.crop(&mut img);
+        assert_eq!(dst.try_get_data().unwrap(), src);
     }
 
     #[test]
+    fn test_crop_batched() {
+        //let dev = Cuda::try_new(0).unwrap();
+        let dev = Cpu::default();
+        let (b, c, w, h) = (20, 3, 3, 3);
+        let template = &[1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let mut src = vec![0u8; b * c * w * h];
+        src.chunks_mut(w * h).for_each(|slice| {
+            slice.copy_from_slice(template);
+        });
+        let cropper = RandomCrop::new(3, 3, 3, 3);
+        let mut img: Image<u8, _> = Image::try_from_slice(&src, b, w, h, c, &dev).unwrap();
+        let crop_img = cropper.crop(&mut img);
+        let crop_img = crop_img.try_get_data().unwrap();
+        crop_img.chunks(w * h).for_each(|slice| {
+            assert_eq!(slice, template);
+        })
+    }
+}
+    /*#[test]
     fn test_crop_1() {
         let src = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let mut dst = vec![0u8; 3 * 3];

@@ -36,7 +36,7 @@ __device__ __forceinline__ bool mirrorBorder(int pos, int srcDim, int padding, i
 }
 
 #define MAKE_BORDER_OP(TYPE, KERNEL_NAME, BORDER_OP) \
-__global__ void KERNEL_NAME(const TYPE* src, int srcWidth, int srcHeight, int padding, TYPE* dst) \
+extern "C" __global__ void KERNEL_NAME(const TYPE* src, int srcWidth, int srcHeight, int padding, TYPE* dst) \
 { \
     unsigned int x = blockIdx.x * blockDim.x + threadIdx.x; \
     unsigned int y = blockIdx.y * blockDim.y + threadIdx.y; \
@@ -49,19 +49,25 @@ __global__ void KERNEL_NAME(const TYPE* src, int srcWidth, int srcHeight, int pa
     int newWidth = srcWidth + 2 * padding; \
     int newHeight = srcHeight + 2 * padding; \
  \
-    int bPos; \
-    bool res = BORDER_OP(x, srcWidth, padding, &bPos); \
-    if (res) \
+    int bXPos, bYPos; \
+    bool xres = BORDER_OP(x, srcWidth, padding, &bXPos); \
+    bool yres = BORDER_OP(y, srcHeight, padding, &bYPos); \
+    if (xres && yres) \
     { \
-        dst[x + newWidth * y] = src[bPos + srcWidth * y]; \
+        dst[x + newWidth * y] = src[bXPos + srcWidth * bYPos]; \
     } \
-    res = BORDER_OP(y, srcHeight, padding, &bPos); \
-    if (res) \
+    else if (yres) \
     { \
-        dst[x + newWidth * y] = src[x + srcWidth * bPos]; \
+        dst[x + newWidth * y] = src[x + srcWidth * bYPos]; \
+    } \
+    else if (xres) \
+    { \
+        dst[x + newWidth * y] = src[bXPos + srcWidth * y]; \
     } \
  \
-    dst[x + padding + newWidth * y + padding] = src[x + srcWidth * y]; \
+    int xPad = x + padding; \
+    int yPad = y + padding; \
+    dst[xPad + newWidth * yPad] = src[x + srcWidth * y]; \
 }
 
 MAKE_BORDER_OP(uint8_t, make_constant_border_kernel_u8, constantBorder)

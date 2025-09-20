@@ -22,7 +22,7 @@ impl RandomFlipHorizontal {
 }
 
 impl RandomFlipHorizontal {
-    fn flip<T, S: HorizFlipKernel<T>>(&self, image: &mut Image<T, S>) {
+    pub fn flip<T, S: HorizFlipKernel<T>>(&self, image: &mut Image<T, S>) {
         if image.height & (image.height - 1) != 0 {
             panic!(
                 "Image dimensions must be a power of two. Image dims: {}",
@@ -60,8 +60,8 @@ mod tests {
     #[test]
     fn test_flip_horizontal() {
         let src: Vec<u8> = vec![1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4];
-        let dev = Cuda::try_new(0).unwrap();
-        //let dev = Cpu::default();
+        //let dev = Cuda::try_new(0).unwrap();
+        let dev = Cpu::default();
         let flipper = RandomFlipHorizontal::new(2.0);
         let mut img = Image::try_from_slice(&src, 1, 4, 4, 1, &dev).unwrap();
         flipper.flip(&mut img);
@@ -69,6 +69,25 @@ mod tests {
             img.try_get_data().unwrap(),
             &[4, 4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1]
         );
+    }
+
+    #[test]
+    fn test_flip_horizontal_batch() {
+        let (b, c, w, h) = (10usize, 3, 4, 4);
+        let template: Vec<u8> = vec![1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4];
+        let mut src: Vec<u8> = vec![0u8; b * c * w * h];
+        src.chunks_mut(w * h).for_each(|chunk| {
+            chunk.copy_from_slice(&template)
+        });
+        //let dev = Cuda::try_new(0).unwrap();
+        let dev = Cpu::default();
+        let flipper = RandomFlipHorizontal::new(2.0);
+        let mut img: Image<u8, _> = Image::try_from_slice(&src, b, w, h, c, &dev).unwrap();
+        flipper.flip(&mut img);
+        let dst = img.try_get_data().unwrap();
+        dst.chunks(w * h).for_each(|chunk| {
+            assert_eq!(&[4, 4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1], &chunk);
+        })
     }
 
     #[test]

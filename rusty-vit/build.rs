@@ -1,13 +1,11 @@
 use std::path::PathBuf;
 
 fn main() {
-    cc::Build::new()
-        .cuda(true)
-        .cudart("shared")
-        .includes(["/usr/local/cuda-12.0/include"])
-        .warnings(false)
-        .extra_warnings(false);
+    #[cfg(feature = "cuda")]
+    build_cuda();
+}
 
+fn build_cuda() {
     let env_vars = [
         "CUDA_PATH",
         "CUDA_ROOT",
@@ -74,13 +72,13 @@ fn main() {
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
                 .spawn()
-                .expect("Unable to start nvcc. Ensure that nvcc is installed and the path to the cuda installation is `exported` to CUDA_HOME env variable.")
+                .expect("Unable to start nvcc. Ensure that the nvcc directory is on PATH.")
         })
         .collect::<Vec<_>>();
 
     // Wait for all nvcc processes to finish and output any failures.
     for (kernel_path, child) in kernel_paths.iter().zip(children.into_iter()) {
-        let output = child.wait_with_output().expect("Unable to start nvcc. Ensure that nvcc is installed and the path to the cuda installation is `exported` to CUDA_HOME env variable.");
+        let output = child.wait_with_output().expect("Unable to start nvcc. Ensure that the nvcc directory is on PATH.");
         assert!(
             output.status.success(),
             "nvcc error while compiling {kernel_path:?}:\n\n# stdout\n{:#}\n\n# stderr\n{:#}",

@@ -32,22 +32,27 @@ impl<T: PixelType, I: BorderMode> super::MakeBorderKernel<T, I> for Cpu
 where
     Self: InterpOp<I>,
 {
-    fn make_border(&mut self, src: &Image<T, Self>, padding: usize, fill_value: T) -> Self::Vec {
-        let image_size = src.width * src.height;
-        let chunk_size = src.channels * image_size;
-
+    fn make_border(
+        &mut self,
+        src: &Image<T, Self>,
+        padding: usize,
+        fill_value: T,
+    ) -> Image<T, Self> {
         // New batched image size with padding added.
         let new_image_width = src.width + 2 * padding;
         let new_image_height = src.height + 2 * padding;
-        let new_chunk_size = src.channels * new_image_width * new_image_height;
-        let mut new_batched_data = src
-            .device
-            .try_alloc(src.batch_size * new_chunk_size)
-            .unwrap();
+        let mut mb_image = Image::try_new(
+            src.batch_size,
+            new_image_width,
+            new_image_height,
+            src.channels,
+            self,
+        )
+        .unwrap();
 
         src.data
-            .par_chunks(chunk_size)
-            .zip(new_batched_data.par_chunks_mut(new_chunk_size))
+            .par_chunks(src.strides[0])
+            .zip(mb_image.data.par_chunks_mut(mb_image.strides[0]))
             .for_each(|(in_slice, out_slice)| {
                 self.make_border_kernel(
                     in_slice,
@@ -59,12 +64,12 @@ where
                     out_slice,
                 );
             });
-        new_batched_data
+        mb_image
     }
 }
 
 impl Cpu {
-    fn make_border_kernel<T: PixelType, F> (
+    fn make_border_kernel<T: PixelType, F>(
         &self,
         src: &[T],
         width: usize,
@@ -73,7 +78,9 @@ impl Cpu {
         padding: usize,
         op: F,
         out: &mut [T],
-    ) where F: Fn(usize, usize, usize) -> usize {
+    ) where
+        F: Fn(usize, usize, usize) -> usize,
+    {
         let new_width = width + padding * 2;
         let new_height = height + padding * 2;
 
@@ -120,10 +127,8 @@ impl Cpu {
                 let (out, input) = out_channel_slice.split_at_mut(new_width * padding);
                 for row in 0..padding {
                     let idx = op(row, padding, height);
-                    out[row * new_width..row * new_width + new_width].copy_from_slice(
-                        &input
-                            [idx * new_width..idx * new_width + new_width],
-                    );
+                    out[row * new_width..row * new_width + new_width]
+                        .copy_from_slice(&input[idx * new_width..idx * new_width + new_width]);
                 }
             }
             {
@@ -131,10 +136,9 @@ impl Cpu {
                 let (input, out) = out_channel_slice.split_at_mut(padding + height * new_width);
                 for row in 0..padding {
                     let idx = op(row + height, padding, height);
-                    out[row * new_width..row * new_width + new_width]
-                        .copy_from_slice(
-                            &input[idx + padding * new_width..idx + padding * new_width + new_width],
-                        );
+                    out[row * new_width..row * new_width + new_width].copy_from_slice(
+                        &input[idx + padding * new_width..idx + padding * new_width + new_width],
+                    );
                 }
             }
         }

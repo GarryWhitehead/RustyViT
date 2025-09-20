@@ -1,8 +1,7 @@
-use clap::Parser;
-use rusty_llm::data_loader::load_cifar_data;
-use rusty_llm::get_sinusoid_encoding;
-use rusty_llm::tensor::Matrix;
-use rusty_llm::vision::convolution::Convolution;
+/*use clap::Parser;
+use rusty_vit::loaders::cifar;
+use rusty_vit::tensor::Tensor;
+use rusty_vit::vision::convolution::Convolution;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -38,4 +37,4 @@ impl Embeddings {
 fn main() {
     let args = Args::parse();
     load_cifar_data(args.data_folder_path.as_str(), 0);
-}
+}*/

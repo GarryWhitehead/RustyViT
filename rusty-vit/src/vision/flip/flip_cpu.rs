@@ -5,9 +5,7 @@ use rayon::prelude::*;
 
 impl<T: PixelType> super::HorizFlipKernel<T> for Cpu {
     fn flip_horizontal(&mut self, src: &mut Image<T, Self>, prob: f32) {
-        let total_image_size = src.width * src.height;
-        let chunk_size = total_image_size * src.channels;
-
+        let chunk_size = src.strides[0];
         src.data.par_chunks_mut(chunk_size).for_each(|in_image| {
             let mut rng = rand::rng();
             // Only flip the image if the generated random distribution is less than the
@@ -27,10 +25,10 @@ impl Cpu {
         channels: usize,
     ) {
         let half_size = height >> 1;
-        for channels in 0..channels {
+        for c in 0..channels {
             for row in 0..half_size {
                 for col in 0..width {
-                    let base_offset = channels * col * width;
+                    let base_offset = c * width * height;
                     let bottom_offset = base_offset + (height - row - 1) * width;
                     let tmp = src[bottom_offset + col];
                     src[bottom_offset + col] = src[base_offset + row * width + col];

@@ -39,10 +39,11 @@ where
         let mut rng = rand::rng();
         for b in 0..src.batch_size {
             if rng.random_range(0.0..1.0) < prob {
-                let slice_base = b * src.width * src.height;
+                let slice_base = b * src.strides[0];
                 for c in 0..src.channels {
-                    let slice_end = slice_base + c * src.width * src.height;
-                    let s = src.data.slice(slice_base..slice_end);
+                    let slice_start = slice_base + c * src.strides[1];
+                    let slice_end = slice_start + src.strides[1];
+                    let s = src.data.slice(slice_start..slice_end);
                     let mut builder = self.stream0.launch_builder(&k_func);
                     builder.arg(&s).arg(&src.width).arg(&src.height);
                     let cfg = LaunchConfig {

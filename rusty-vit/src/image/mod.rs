@@ -84,12 +84,13 @@ impl PixelType for f32 {
     const ONE: Self = 1f32;
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Image<T, S: DeviceStorage<T>> {
     pub(crate) batch_size: usize,
     pub(crate) width: usize,
     pub(crate) height: usize,
     pub(crate) channels: usize,
+    pub(crate) strides: Vec<usize>,
     pub(crate) data: S::Vec,
     pub(crate) device: S,
 }
@@ -108,6 +109,7 @@ impl<T: PixelType, S: DeviceStorage<T>> Image<T, S> {
             width,
             height,
             channels,
+            strides: Self::compute_strides(batch_size, channels, width, height),
             data: d,
             device: dev.clone(),
         })
@@ -126,6 +128,7 @@ impl<T: PixelType, S: DeviceStorage<T>> Image<T, S> {
             width,
             height,
             channels,
+            strides: Self::compute_strides(batch_size, channels, width, height),
             data: dev.try_alloc_with_slice(slice)?,
             device: dev.clone(),
         })
@@ -134,7 +137,17 @@ impl<T: PixelType, S: DeviceStorage<T>> Image<T, S> {
     pub fn try_get_data(&self) -> Result<Vec<T>, Box<dyn Error>> {
         Ok(self.device.try_from_device_vec(&self.data)?)
     }
+
+    fn compute_strides(batch_size: usize, channels: usize, width: usize, height: usize) -> Vec<usize> {
+        let shape = &[batch_size, channels, width, height];
+        let mut strides = vec![1; 4];
+        for i in (0..(shape.len() - 1)).rev() {
+            strides[i] = strides[i + 1] * shape[i + 1];
+        }
+        strides
+    }
 }
+
 
 
 

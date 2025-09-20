@@ -11,22 +11,15 @@ impl<T: PixelType> super::CropKernel<T> for Cpu {
         crop_height: usize,
         x: usize,
         y: usize,
-    ) -> Self::Vec
+    ) -> Image<T, Self>
     where
         Self: Sized,
     {
-        let image_size = src.width * src.height;
-        let chunk_size = src.channels * image_size;
-
-        let crop_image_size = crop_width * crop_height;
-        let crop_chunk_size = src.channels * crop_image_size;
-        let mut crop_data = src
-            .device
-            .try_alloc(src.batch_size * crop_chunk_size)
-            .unwrap();
+        let mut crop_img =
+            Image::try_new(src.batch_size, crop_width, crop_height, src.channels, self).unwrap();
         src.data
-            .par_chunks(chunk_size)
-            .zip(crop_data.data.par_chunks_mut(crop_chunk_size))
+            .par_chunks(src.strides[0])
+            .zip(crop_img.data.par_chunks_mut(crop_img.strides[0]))
             .for_each(|(in_slice, out_slice)| {
                 Self::crop_kernel(
                     in_slice,
@@ -40,7 +33,7 @@ impl<T: PixelType> super::CropKernel<T> for Cpu {
                     out_slice,
                 );
             });
-        crop_data
+        crop_img
     }
 }
 
@@ -64,17 +57,18 @@ impl Cpu {
         // Nothing to be done if the cropped sizes match the original.
         if crop_width == width && crop_height == height {
             out.copy_from_slice(src);
+            return;
         }
-        
+
         for c in 0..channels {
-            let src_channel_offset = c * width * height;
-            let crop_channel_offset = c * crop_width * crop_height;
-            let src_channel_slice = &src[src_channel_offset..src_channel_offset + width * height];
-            let crop_channel_slice = &mut out[crop_channel_offset..crop_channel_offset + crop_width * crop_height];
-            for row in y..crop_height + y {
-                let row_idx = row * width + x;
-                crop_channel_slice[row - y * crop_width..row - y * crop_width + crop_width]
-                    .copy_from_slice(&src_channel_slice[row_idx..row_idx + crop_width])
+            let src_offset = c * width * height;
+            let crop_offset = c * crop_width * crop_height;
+            let src_slice = &src[src_offset..src_offset + width * height];
+            let crop_slice = &mut out[crop_offset..crop_offset + crop_width * crop_height];
+            for row in 0..crop_height {
+                let row_idx = y + row * width + x;
+                crop_slice[row * crop_width..row * crop_width + crop_width]
+                    .copy_from_slice(&src_slice[row_idx..row_idx + crop_width])
             }
         }
     }
