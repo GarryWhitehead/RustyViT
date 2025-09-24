@@ -2,7 +2,6 @@ use crate::device::DeviceStorage;
 use crate::device::cpu::Cpu;
 use crate::image::{Image, PixelType};
 
-
 type ImageIndex = [usize; 4];
 
 fn to_image_idx(index: ImageIndex, width: usize, height: usize, channels: usize) -> usize {

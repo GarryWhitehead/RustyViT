@@ -78,7 +78,9 @@ fn build_cuda() {
 
     // Wait for all nvcc processes to finish and output any failures.
     for (kernel_path, child) in kernel_paths.iter().zip(children.into_iter()) {
-        let output = child.wait_with_output().expect("Unable to start nvcc. Ensure that the nvcc directory is on PATH.");
+        let output = child
+            .wait_with_output()
+            .expect("Unable to start nvcc. Ensure that the nvcc directory is on PATH.");
         assert!(
             output.status.success(),
             "nvcc error while compiling {kernel_path:?}:\n\n# stdout\n{:#}\n\n# stderr\n{:#}",

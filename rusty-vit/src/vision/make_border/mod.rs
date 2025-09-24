@@ -4,8 +4,7 @@ mod make_border_cu;
 
 use crate::device::DeviceStorage;
 use crate::device::cpu::Cpu;
-use crate::image::PixelType;
-use crate::vision::Image;
+use crate::image::{Image, PixelType};
 
 pub trait MakeBorderKernel<T, I>: DeviceStorage<T> {
     fn make_border(
@@ -112,8 +111,7 @@ mod tests {
         src.chunks_mut(w * h).for_each(|p| {
             p.copy_from_slice(template);
         });
-        let mut img: Image<u8, _> =
-            Image::try_from_slice(&src, 20, 3, 3, 3, &dev).unwrap();
+        let mut img: Image<u8, _> = Image::try_from_slice(&src, 20, 3, 3, 3, &dev).unwrap();
         let mb = MakeBorder::new(1, 0);
         let mb_img = mb.process::<Constant, _>(&mut img);
         let dst = mb_img.try_get_data().unwrap();

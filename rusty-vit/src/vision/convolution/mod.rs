@@ -1,125 +1,65 @@
 use crate::device::DeviceStorage;
 use crate::image::{Image, PixelType};
+use crate::type_traits::FloatType;
+use std::error::Error;
+use std::marker::PhantomData;
 
+mod conv_cpu;
 #[cfg(feature = "cuda")]
 mod conv_cu;
-mod conv_cpu;
 
-pub trait ConvKernel<T>: DeviceStorage<T> {
-    fn convolution(&self, src: &mut Image<T, Self>, kernel: &Kernel)
-    where
+pub trait Conv<T: PixelType, F: FloatType>: DeviceStorage<T> + DeviceStorage<F> {
+    fn convolution(
+        &mut self,
+        src: &mut Image<T, Self>,
+        x_kernel: &Kernel<F, Self>,
+        y_kernel: &Kernel<F, Self>,
+    ) where
         Self: Sized;
 }
 
 #[derive(Debug, Clone)]
-pub struct Kernel {
-    width: usize,
-    height: usize,
-    data: Vec<f32>,
+struct Kernel<F: FloatType, D: DeviceStorage<F>> {
+    data: D::Vec,
+    device: D,
 }
 
-impl Kernel {
-    pub fn new(width: usize, height: usize, data: &[f32]) -> Self {
-        if width == 0 || height == 0 {
-            panic!("Kernel width and height must be non-zero");
-        }
-        if data.len() != width * height {
-            panic!("Kernel data size does not equal the kernel dimensions");
-        }
-
-        Self {
-            width,
-            height,
-            data: data.to_vec(),
-        }
+impl<F: FloatType, D: DeviceStorage<F>> Kernel<F, D> {
+    fn try_new(data: &[F], dev: &D) -> Result<Self, Box<dyn Error>> {
+        let k = dev.try_alloc_with_slice(data)?;
+        Ok(Self {
+            data: k,
+            device: dev.clone(),
+        })
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct Convolution {
-    kernel: Kernel
+pub struct Convolution<F: FloatType, T: PixelType, D: DeviceStorage<F> + Conv<T, F>> {
+    x_kernel: Kernel<F, D>,
+    y_kernel: Kernel<F, D>,
+    phantom_data: PhantomData<T>,
 }
 
-impl Convolution {
-    pub fn new(
-        kernel: &Kernel,
-    ) -> Self {
-        Self {
-            kernel: kernel.clone(),
-        }
+impl<F: FloatType, T: PixelType, D: DeviceStorage<F> + Conv<T, F>> Convolution<F, T, D> {
+    pub fn try_new(x_kernel: &[F], y_kernel: &[F], dev: &D) -> Result<Self, Box<dyn Error>> {
+        Ok(Self {
+            x_kernel: Kernel::try_new(x_kernel, dev)?,
+            y_kernel: Kernel::try_new(y_kernel, dev)?,
+            phantom_data: Default::default(),
+        })
     }
 }
 
-impl Convolution {
-    pub fn convolution<T: PixelType, S: ConvKernel<T>>(self, src: &mut Image<T, S>) {
-        if self.kernel.width >= src.width {
+impl<F: FloatType, T: PixelType, D: Conv<T, F>> Convolution<F, T, D> {
+    pub fn process(&self, src: &mut Image<T, D>) {
+        if <D as DeviceStorage<F>>::len(&self.x_kernel.data) >= src.width {
             panic!("kernel width cannot be greater than the kernel width");
         }
-        if self.kernel.height >= src.height {
+        if <D as DeviceStorage<F>>::len(&self.x_kernel.data) >= src.height {
             panic!("kernel height cannot be greater than the kernel height");
         }
-        let dev = &src.device.clone();
-        dev.convolution(src, &self.kernel);
+        let dev = &mut src.device.clone();
+        dev.convolution(src, &self.x_kernel, &self.y_kernel);
     }
 }
-
-/*mod tests {
-    use super::*;
-    #[test]
-    fn test_convolution_no_pad() {
-        let src = &[
-            3.0, 3.0, 2.0, 1.0, 0.0, 0.0, 0.0, 1.0, 3.0, 1.0, 3.0, 1.0, 2.0, 2.0, 3.0, 2.0, 0.0,
-            0.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 1.0,
-        ];
-        let mut dst = vec![0.0f32; 3 * 3];
-        let kernel = &[0.0, 1.0, 2.0, 2.0, 2.0, 0.0, 0.0, 1.0, 2.0];
-        let conv = Convolution::new(1, 1, 1, 1, 0, 3, 5, 0.0);
-        conv.convolution(src, 5, kernel, &mut dst);
-        assert_eq!(dst, [12.0, 12.0, 17.0, 10.0, 17.0, 19.0, 9.0, 6.0, 14.0]);
-    }
-
-    #[test]
-    fn test_convolution_one_pad() {
-        let src = &[
-            2.0, 2.0, 3.0, 3.0, 3.0, 0.0, 1.0, 3.0, 0.0, 3.0, 2.0, 3.0, 0.0, 1.0, 3.0, 3.0, 3.0,
-            2.0, 1.0, 2.0, 3.0, 3.0, 0.0, 2.0, 3.0,
-        ];
-        let mut dst = vec![0.0f32; 5 * 5];
-        let kernel = &[2.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0];
-        let conv = Convolution::new(1, 1, 1, 1, 1, 3, 5, 0.0);
-        conv.convolution(src, 5, kernel, &mut dst);
-        assert_eq!(
-            dst,
-            [
-                1.0, 6.0, 5.0, 6.0, 6.0, 7.0, 10.0, 9.0, 16.0, 9.0, 7.0, 10.0, 8.0, 12.0, 3.0, 9.0,
-                10.0, 12.0, 10.0, 6.0, 3.0, 11.0, 10.0, 6.0, 4.0
-            ]
-        );
-    }
-
-    #[test]
-    fn test_convolution_stride_two() {
-        let src = &[
-            2.0, 2.0, 3.0, 3.0, 3.0, 0.0, 1.0, 3.0, 0.0, 3.0, 2.0, 3.0, 0.0, 1.0, 3.0, 3.0, 3.0,
-            2.0, 1.0, 2.0, 3.0, 3.0, 0.0, 2.0, 3.0,
-        ];
-        let mut dst = vec![0.0f32; 3 * 3];
-        let kernel = &[2.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0];
-        let conv = Convolution::new(1, 1, 1, 2, 1, 3, 5, 0.0);
-        conv.convolution(src, 5, kernel, &mut dst);
-        assert_eq!(dst, [1.0, 5.0, 6.0, 7.0, 8.0, 3.0, 3.0, 10.0, 4.0]);
-    }
-
-    #[test]
-    fn test_convolution_process() {
-        let src = &[
-            2.0, 2.0, 3.0, 3.0, 3.0, 0.0, 1.0, 3.0, 0.0, 3.0, 2.0, 3.0, 0.0, 1.0, 3.0, 3.0, 3.0,
-            2.0, 1.0, 2.0, 3.0, 3.0, 0.0, 2.0, 3.0,
-        ];
-        let matrix = Matrix::from_slice_copy(src, &[1, 1, 5, 5]);
-
-        let conv = Convolution::new(1, 1, 1, 1, 0, 3, 5, 0.0);
-        let conv_mat = conv.process(&matrix);
-        assert_eq!(conv_mat.shape, &[1, 1, 3, 3]);
-    }
-}*/

@@ -26,7 +26,6 @@ where
     Self: KernelOp<T>,
 {
     fn flip_horizontal(&mut self, src: &mut Image<T, Self>, prob: f32) {
-        assert!(src.height & (src.height - 1) == 0);
         let k_func = self.register_kernel(FLIP_PTX, Self::KERNEL_NAME);
 
         let block_dim = (32, 8, 1);

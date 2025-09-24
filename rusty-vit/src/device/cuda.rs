@@ -1,16 +1,25 @@
 use crate::device::DeviceStorage;
 use crate::image::{Image, PixelType};
-use crate::tensor::{FloatType, Tensor};
+use crate::tensor::Tensor;
+use log::{debug, info};
 use std::collections::HashMap;
 use std::error::Error;
+use std::fmt::Debug;
 use std::sync::Arc;
 use std::{env, fs};
-use log::{debug, info};
 
-use cudarc::{driver::{CudaContext, CudaFunction, CudaSlice, CudaStream, DeviceRepr, LaunchConfig, PushKernelArg, ValidAsZeroBits}, nvrtc::compile_ptx};
-use cudarc::nvrtc::{compile_ptx_with_opts, CompileOptions, Ptx};
-use num::Zero;
 use crate::device::cu_utils::*;
+use crate::type_traits::{BType, FloatType};
+use cudarc::driver::CudaView;
+use cudarc::nvrtc::{CompileOptions, Ptx, compile_ptx_with_opts};
+use cudarc::{
+    driver::{
+        CudaContext, CudaFunction, CudaSlice, CudaStream, DeviceRepr, LaunchConfig, PushKernelArg,
+        ValidAsZeroBits,
+    },
+    nvrtc::compile_ptx,
+};
+use num::Zero;
 
 #[derive(Debug, Clone)]
 pub struct Cuda {
@@ -86,12 +95,12 @@ impl Cuda {
     }
 }
 
-impl<T: Clone + ValidAsZeroBits + 'static + DeviceRepr + Zero> DeviceStorage<T> for Cuda {
+impl<T: BType> DeviceStorage<T> for Cuda {
     type Vec = CudaSlice<T>;
     fn try_alloc(&self, sz: usize) -> Result<Self::Vec, Box<dyn Error>> {
         assert!(sz > 0);
         let mut cslice = unsafe { self.stream0.alloc(sz)? };
-        self.stream0.memset_zeros(&mut cslice);
+        self.stream0.memset_zeros(&mut cslice)?;
         Ok(cslice)
     }
 
@@ -105,6 +114,15 @@ impl<T: Clone + ValidAsZeroBits + 'static + DeviceRepr + Zero> DeviceStorage<T> 
         let mut v = vec![T::zero(); src.len()];
         self.stream0.memcpy_dtoh(src, &mut v)?;
         Ok(v)
+    }
+
+    fn len(vec: &Self::Vec) -> usize {
+        vec.len()
+    }
+
+    fn try_sync_stream0(&self) -> Result<(), Box<dyn Error>> {
+        self.stream0.synchronize()?;
+        Ok(())
     }
 }
 
@@ -131,15 +149,14 @@ impl KernelOp<f32, f64> for Cuda {
 }
 
 impl<P: PixelType, F: FloatType> super::ToTensor<P, Self, F, Self> for Cuda
-    where
-    Self: KernelOp<P, F> {
-fn to_tensor(
-    &mut self,
-    image: &Image<P, Self>,
-    norm: (&[F], &[F]),
-    ) -> Result<Tensor<F, Self>, Box<dyn Error>>
-   
-    {
+where
+    Self: KernelOp<P, F>,
+{
+    fn to_tensor(
+        &mut self,
+        image: &Image<P, Self>,
+        norm: (&[F], &[F]),
+    ) -> Result<Tensor<F, Self>, Box<dyn Error>> {
         if norm.0.len() != norm.1.len() {
             panic!("Mean and std arrays are different lengths");
         }
@@ -162,7 +179,9 @@ fn to_tensor(
         );
 
         let tensor = Tensor::try_new(
-            &[image.batch_size, image.channels, image.width, image.height], self)?;
+            &[image.batch_size, image.channels, image.width, image.height],
+            self,
+        )?;
         for b in 0..image.batch_size {
             let slice_base = b * image.channels * image.width * image.height;
             for c in 0..image.channels {
@@ -172,7 +191,13 @@ fn to_tensor(
                 let ms = tensor.data.slice(start..end);
 
                 let mut builder = self.stream0.launch_builder(&k_func);
-                builder.arg(&is).arg(&image.width).arg(&image.height).arg(&norm.0[c]).arg(&norm.1[c]).arg(&ms);
+                builder
+                    .arg(&is)
+                    .arg(&image.width)
+                    .arg(&image.height)
+                    .arg(&norm.0[c])
+                    .arg(&norm.1[c])
+                    .arg(&ms);
                 let cfg = LaunchConfig {
                     block_dim,
                     grid_dim,
@@ -184,4 +209,3 @@ fn to_tensor(
         Ok(tensor)
     }
 }
-

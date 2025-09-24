@@ -2,7 +2,7 @@ use crate::device::DeviceStorage;
 use crate::image::{Image, PixelType};
 use num::Zero;
 use rand::prelude::SliceRandom;
-use rayon::iter::{IndexedParallelIterator};
+use rayon::iter::IndexedParallelIterator;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSliceMut;
@@ -54,7 +54,11 @@ trait DataSetFormat {
     fn get_training_file(idx: usize) -> &'static str;
     fn get_test_file(idx: usize) -> &'static str;
 
-    fn read_bytes_from_buffer(file: &str, image_idx: usize, out: &mut [Self::Type]) -> Result<u8, Box<dyn Error>>;
+    fn read_bytes_from_buffer(
+        file: &str,
+        image_idx: usize,
+        out: &mut [Self::Type],
+    ) -> Result<u8, Box<dyn Error>>;
 }
 
 #[derive(Clone, Debug)]
@@ -111,7 +115,10 @@ impl<F: DataSetFormat<Type = u8>> DataLoader<F> {
         })
     }
 
-    pub fn next_batch<D: DeviceStorage<F::Type>>(&mut self, dev: &D) -> Option<(D::Vec, Image<F::Type, D>)> {
+    pub fn next_batch<D: DeviceStorage<F::Type>>(
+        &mut self,
+        dev: &D,
+    ) -> Option<(D::Vec, Image<F::Type, D>)> {
         if self.current >= self.indices.len() {
             return None;
         }
@@ -129,16 +136,11 @@ impl<F: DataSetFormat<Type = u8>> DataLoader<F> {
         let stride = F::IMAGE_FORMAT_DIM * F::IMAGE_FORMAT_DIM * F::IMAGE_FORMAT_CHANNELS;
         let chunk_size = F::IMAGE_FORMAT_LABEL_SIZE + stride;
 
-        let mut labels= vec![0u8; self.batch_size];
+        let mut labels = vec![0u8; self.batch_size];
         let batch_i = &self.indices[self.current..self.current + self.batch_size];
 
-        let image: Image<F::Type, D> = Image::try_new(
-            self.batch_size,
-            self.width,
-            self.height,
-            self.channels,
-            dev
-        )?;
+        let image: Image<F::Type, D> =
+            Image::try_new(self.batch_size, self.width, self.height, self.channels, dev)?;
 
         // Load the images into the temp workspace to begin with; this is to reduce the
         // number of uploads to the device in the case of CUDA/Vulkan.
@@ -161,5 +163,3 @@ impl<F: DataSetFormat<Type = u8>> DataLoader<F> {
         Ok((dev_labels, image))
     }
 }
-
-

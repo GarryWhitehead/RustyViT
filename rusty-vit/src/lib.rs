@@ -2,11 +2,16 @@ pub mod device;
 pub mod image;
 pub mod loaders;
 pub mod tensor;
+mod type_traits;
 pub mod vision;
 
+use crate::tensor::Tensor;
+#[cfg(feature = "cuda")]
+use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
+use num::Zero;
 use num::pow::Pow;
 use rayon::prelude::*;
-use crate::tensor::Tensor;
+use std::fmt::Debug;
 
 const SQRT_2_OVER_PI: f32 = 0.7978845608028654;
 

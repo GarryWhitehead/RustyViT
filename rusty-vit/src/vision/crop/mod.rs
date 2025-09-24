@@ -2,14 +2,20 @@ mod crop_cpu;
 #[cfg(feature = "cuda")]
 mod crop_cu;
 
-use crate::vision::{Image};
+use crate::device::DeviceStorage;
+use crate::image::{Image, PixelType};
 use rand::Rng;
 use rand::distr::Uniform;
-use crate::device::DeviceStorage;
-use crate::image::PixelType;
 
 pub trait CropKernel<T>: DeviceStorage<T> {
-    fn crop(&mut self, src: &mut Image<T, Self>, crop_width: usize, crop_height: usize, x: usize, y: usize)  -> Image<T, Self>
+    fn crop(
+        &mut self,
+        src: &mut Image<T, Self>,
+        crop_width: usize,
+        crop_height: usize,
+        x: usize,
+        y: usize,
+    ) -> Image<T, Self>
     where
         Self: Sized;
 }
@@ -54,10 +60,10 @@ impl RandomCrop {
 }
 
 mod tests {
+    use super::*;
+    use crate::device::cpu::Cpu;
     #[cfg(feature = "cuda")]
     use crate::device::cuda::Cuda;
-    use crate::device::cpu::Cpu;
-    use super::*;
 
     #[test]
     fn test_crop() {
@@ -89,7 +95,7 @@ mod tests {
         })
     }
 }
-    /*#[test]
+/*#[test]
     fn test_crop_1() {
         let src = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let mut dst = vec![0u8; 3 * 3];

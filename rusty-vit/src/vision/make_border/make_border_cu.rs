@@ -1,10 +1,10 @@
-use std::env;
-use cudarc::driver::{LaunchConfig, PushKernelArg};
+use crate::device::DeviceStorage;
 use crate::device::cu_utils::*;
 use crate::device::cuda::Cuda;
-use crate::device::DeviceStorage;
 use crate::image::{Image, PixelType};
 use crate::vision::make_border::BorderMode;
+use cudarc::driver::{LaunchConfig, PushKernelArg};
+use std::env;
 
 trait KernelOp<T: PixelType, B: BorderMode> {
     const KERNEL_NAME: &'static str;
@@ -44,8 +44,12 @@ impl<T: PixelType, B: BorderMode> super::MakeBorderKernel<T, B> for Cuda
 where
     Self: KernelOp<T, B>,
 {
-    fn make_border(&mut self, src: &Image<T, Self>, padding: usize, fill_value: T) -> Image<T, Self>
-    {
+    fn make_border(
+        &mut self,
+        src: &Image<T, Self>,
+        padding: usize,
+        fill_value: T,
+    ) -> Image<T, Self> {
         let k_func = self.register_kernel(MAKE_BORDER_PTX, Self::KERNEL_NAME);
 
         let block_dim = (32, 8, 1);
@@ -54,10 +58,11 @@ where
             div_up(src.height as u32, block_dim.1),
             1,
         );
-        
+
         let dst_width = src.width + 2 * padding;
         let dst_height = src.height + 2 * padding;
-        let mb_img = Image::try_new(src.batch_size, dst_width, dst_height, src.channels, self).unwrap();
+        let mb_img =
+            Image::try_new(src.batch_size, dst_width, dst_height, src.channels, self).unwrap();
 
         for b in 0..src.batch_size {
             let slice_base = b * src.strides[0];

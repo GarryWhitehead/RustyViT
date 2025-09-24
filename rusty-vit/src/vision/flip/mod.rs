@@ -23,12 +23,6 @@ impl RandomFlipHorizontal {
 
 impl RandomFlipHorizontal {
     pub fn flip<T, S: HorizFlipKernel<T>>(&self, image: &mut Image<T, S>) {
-        if image.height & (image.height - 1) != 0 {
-            panic!(
-                "Image dimensions must be a power of two. Image dims: {}",
-                image.height
-            );
-        }
         let dev = &mut image.device.clone();
         dev.flip_horizontal(image, self.probability);
     }
@@ -76,9 +70,8 @@ mod tests {
         let (b, c, w, h) = (10usize, 3, 4, 4);
         let template: Vec<u8> = vec![1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4];
         let mut src: Vec<u8> = vec![0u8; b * c * w * h];
-        src.chunks_mut(w * h).for_each(|chunk| {
-            chunk.copy_from_slice(&template)
-        });
+        src.chunks_mut(w * h)
+            .for_each(|chunk| chunk.copy_from_slice(&template));
         //let dev = Cuda::try_new(0).unwrap();
         let dev = Cpu::default();
         let flipper = RandomFlipHorizontal::new(2.0);

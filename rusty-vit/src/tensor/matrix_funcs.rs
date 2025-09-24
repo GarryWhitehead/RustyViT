@@ -55,8 +55,7 @@ pub fn add_block<TYPE, const BLOCK_SIZE: usize>(
     m2: &[TYPE],
     width: usize,
     height: usize,
-)
-where
+) where
     TYPE: Zero + Clone + Copy + AddAssign,
 {
     assert_eq!(m1.len(), width * height);

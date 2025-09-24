@@ -3,16 +3,13 @@ pub mod cpu_image;
 pub mod cu_image;
 
 use crate::device::DeviceStorage;
+use crate::type_traits::{BType, SafeZeros};
+#[cfg(feature = "cuda")]
+use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
 use num::Zero;
 use num::traits::{FromBytes, ToBytes};
 use std::error::Error;
-#[cfg(feature = "cuda")]
-use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
-
-#[cfg(feature = "cuda")]
-pub trait SafeZeros: ValidAsZeroBits + DeviceRepr {}
-#[cfg(not(feature = "cuda"))]
-pub trait SafeZeros {}
+use std::ops::Add;
 
 pub trait ToFloat: Default + Copy + Clone + 'static {
     fn to_float(self) -> f32;
@@ -47,16 +44,11 @@ impl ToFloat for f32 {
 }
 
 pub trait PixelType:
-    'static
+    BType
     + Copy
-    + Clone
     + Default
-    + std::fmt::Debug
     + PartialEq
     + PartialOrd
-    + Send
-    + Sync
-    + SafeZeros
     + Zero
     + FromBytes
     + ToBytes
@@ -69,10 +61,6 @@ pub trait PixelType:
 {
     const ONE: Self;
 }
-
-impl SafeZeros for u8 {}
-impl SafeZeros for u16 {}
-impl SafeZeros for f32 {}
 
 impl PixelType for u8 {
     const ONE: Self = 1u8;
@@ -135,10 +123,16 @@ impl<T: PixelType, S: DeviceStorage<T>> Image<T, S> {
     }
 
     pub fn try_get_data(&self) -> Result<Vec<T>, Box<dyn Error>> {
+        self.device.try_sync_stream0()?;
         Ok(self.device.try_from_device_vec(&self.data)?)
     }
 
-    fn compute_strides(batch_size: usize, channels: usize, width: usize, height: usize) -> Vec<usize> {
+    fn compute_strides(
+        batch_size: usize,
+        channels: usize,
+        width: usize,
+        height: usize,
+    ) -> Vec<usize> {
         let shape = &[batch_size, channels, width, height];
         let mut strides = vec![1; 4];
         for i in (0..(shape.len() - 1)).rev() {
@@ -147,7 +141,3 @@ impl<T: PixelType, S: DeviceStorage<T>> Image<T, S> {
         strides
     }
 }
-
-
-
-

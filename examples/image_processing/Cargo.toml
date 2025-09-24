@@ -14,3 +14,11 @@ doc = false
 
 [dependencies]
 rusty-vit = { workspace = true }
+show-image = { workspace = true }
+image = { workspace = true }
+
+[features]
+default = ["cpu"]
+cpu = ["rusty-vit/cpu"]
+cuda = ["rusty-vit/cuda"]
+

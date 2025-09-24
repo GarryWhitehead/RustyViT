@@ -1,48 +1,21 @@
-use std::error::Error;
-use num::traits::{FromBytes, ToBytes};
-use num::{Zero, Float};
 use crate::device::DeviceStorage;
+use crate::type_traits::FloatType;
 #[cfg(feature = "cuda")]
 use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
+use num::traits::{FromBytes, ToBytes};
+use num::{Float, Zero};
+use std::error::Error;
 
+mod convolution;
 pub mod layer_norm;
 pub mod matmul;
 pub mod matrix_funcs;
-mod convolution;
 mod tensor_cpu;
 
 #[cfg(feature = "cuda")]
 pub trait SafeZeros: ValidAsZeroBits + DeviceRepr {}
 #[cfg(not(feature = "cuda"))]
 pub trait SafeZeros {}
-
-pub trait FloatType:
-'static
-+ Copy
-+ Clone
-+ Default
-+ std::fmt::Debug
-+ PartialEq
-+ PartialOrd
-+ Send
-+ Sync
-+ SafeZeros
-+ Zero
-+ FromBytes
-+ ToBytes
-+ Float
-{
-    const ONE: Self;
-}
-
-impl SafeZeros for f32 {}
-impl SafeZeros for f64 {}
-impl FloatType for f32 {
-    const ONE: Self = 1.0f32;
-}
-impl FloatType for f64 {
-    const ONE: Self = 1.0f64;
-}
 
 #[derive(Clone)]
 pub struct Tensor<T: FloatType, S: DeviceStorage<T>> {
@@ -69,7 +42,7 @@ impl<T: FloatType, S: DeviceStorage<T>> Tensor<T, S> {
             data: dev.try_alloc(size)?,
             device: dev.clone(),
             shape: shape.to_vec(),
-            strides
+            strides,
         })
     }
 }

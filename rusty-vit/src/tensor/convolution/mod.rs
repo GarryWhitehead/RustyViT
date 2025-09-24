@@ -1,6 +1,6 @@
+mod conv_cpu;
 #[cfg(feature = "cuda")]
 mod conv_cu;
-mod conv_cpu;
 
 pub struct Convolution {
     in_channels: usize,
@@ -40,4 +40,3 @@ impl Convolution {
         }
     }
 }
-    

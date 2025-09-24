@@ -1,9 +1,9 @@
-use std::env;
-use cudarc::driver::{LaunchConfig, PushKernelArg};
+use super::*;
 use crate::device::cu_utils::*;
 use crate::device::cuda::Cuda;
 use crate::image::PixelType;
-use super::*;
+use cudarc::driver::{LaunchConfig, PushKernelArg};
+use std::env;
 
 const RESIZE_PTX: &str = include_str!(concat!(env!("OUT_DIR"), "/resize.ptx"));
 
@@ -24,8 +24,12 @@ impl<T: PixelType, I: InterpMode> ResizeKernel<T, I> for Cuda
 where
     Self: KernelOp<T, I>,
 {
-    fn resize(&mut self, src: &mut Image<T, Self>, dst_width: usize, dst_height: usize) -> Image<T, Self>
-    {
+    fn resize(
+        &mut self,
+        src: &mut Image<T, Self>,
+        dst_width: usize,
+        dst_height: usize,
+    ) -> Image<T, Self> {
         let k_func = self.register_kernel(RESIZE_PTX, Self::KERNEL_NAME);
 
         let block_dim = (32, 8, 1);
@@ -35,9 +39,10 @@ where
             1,
         );
 
-        let rz_img = Image::try_new(src.batch_size, dst_width, dst_height, src.channels, self).unwrap();
+        let rz_img =
+            Image::try_new(src.batch_size, dst_width, dst_height, src.channels, self).unwrap();
         let scale_x = src.width as f32 / dst_width as f32;
-        let scale_y = src.height as f32 / dst_height as f32 ;
+        let scale_y = src.height as f32 / dst_height as f32;
 
         for b in 0..src.batch_size {
             let slice_base = b * src.strides[0];

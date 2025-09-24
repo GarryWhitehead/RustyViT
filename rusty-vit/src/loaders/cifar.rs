@@ -8,7 +8,7 @@ pub(crate) trait DataSetBytes {
 
 impl DataSetBytes for u8 {
     fn from_bytes(v: &[u8]) -> Self {
-        v[0]        
+        v[0]
     }
 }
 
@@ -82,16 +82,15 @@ impl super::DataSetFormat for Cifar10Loader {
         image_idx: usize,
         out: &mut [Self::Type],
     ) -> Result<u8, Box<dyn Error>> {
-        
         let stride = Self::IMAGE_FORMAT_DIM * Self::IMAGE_FORMAT_DIM * Self::IMAGE_FORMAT_CHANNELS;
         let chunk_size = stride + Self::IMAGE_FORMAT_LABEL_SIZE;
-        
+
         let mut f = BufReader::new(File::open(file)?);
         f.seek(SeekFrom::Start((image_idx * chunk_size) as u64))?;
         let mut label = [0_u8];
         f.read_exact(&mut label)?;
         let label = label[0];
-        
+
         read_buffer_bytes(&mut f, stride, out)?;
 
         Ok(label)

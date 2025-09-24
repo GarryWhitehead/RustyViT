@@ -1,5 +1,5 @@
 use crate::device::cpu::Cpu;
-use crate::tensor::{Tensor, FloatType};
+use crate::tensor::{FloatType, Tensor};
 
 type TensorIndex = Vec<usize>;
 
