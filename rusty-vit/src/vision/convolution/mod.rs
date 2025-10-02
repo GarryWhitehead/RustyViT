@@ -52,7 +52,7 @@ impl<F: FloatType, T: PixelType, D: DeviceStorage<F> + Conv<T, F>> Convolution<F
 }
 
 impl<F: FloatType, T: PixelType, D: Conv<T, F>> Convolution<F, T, D> {
-    pub fn process(&self, src: &mut Image<T, D>) {
+    pub fn process(&mut self, src: &mut Image<T, D>) {
         if <D as DeviceStorage<F>>::len(&self.x_kernel.data) >= src.width {
             panic!("kernel width cannot be greater than the kernel width");
         }
@@ -60,6 +60,6 @@ impl<F: FloatType, T: PixelType, D: Conv<T, F>> Convolution<F, T, D> {
             panic!("kernel height cannot be greater than the kernel height");
         }
         let dev = &mut src.device.clone();
-        dev.convolution(src, &self.x_kernel, &self.y_kernel);
+        dev.convolution(src, &mut self.x_kernel, &self.y_kernel);
     }
 }

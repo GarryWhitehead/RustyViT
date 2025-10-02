@@ -35,7 +35,7 @@ where
             .par_chunks(src.strides[0])
             .zip(rz_img.data.par_chunks_mut(rz_img.strides[0]))
             .for_each(|(in_slice, out_slice)| {
-                let tmp = self.resize_kernel(
+                let tmp = self.clone().resize_kernel(
                     in_slice,
                     src.channels,
                     src.width,
@@ -84,7 +84,7 @@ impl Cpu {
     }
 
     pub fn resize_kernel<T: PixelType>(
-        &self,
+        &mut self,
         src: &[T],
         channels: usize,
         src_width: usize,
@@ -158,7 +158,7 @@ impl Cpu {
     }
 
     fn transpose<T: PixelType>(
-        &self,
+        &mut self,
         input: &[T],
         width: usize,
         height: usize,

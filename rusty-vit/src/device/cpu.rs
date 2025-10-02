@@ -11,7 +11,7 @@ use std::{
 #[derive(Clone, Default)]
 pub struct Cpu {}
 
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct VecPool<T> {
     pub(crate) data: Vec<T>,
 }

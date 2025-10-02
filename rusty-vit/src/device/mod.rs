@@ -10,6 +10,8 @@ pub mod cpu;
 pub mod cu_utils;
 #[cfg(feature = "cuda")]
 pub mod cuda;
+#[cfg(feature = "vulkan")]
+pub mod vulkan;
 
 pub trait DeviceStorage<T>: Clone {
     type Vec: 'static + Clone + Send + Sync + Debug;

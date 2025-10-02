@@ -1,6 +1,8 @@
 mod flip_cpu;
 #[cfg(feature = "cuda")]
 mod flip_cu;
+#[cfg(feature = "vulkan")]
+mod flip_vk;
 
 use crate::device::DeviceStorage;
 use crate::image::Image;
@@ -23,7 +25,7 @@ impl RandomFlipHorizontal {
 
 impl RandomFlipHorizontal {
     pub fn flip<T, S: HorizFlipKernel<T>>(&self, image: &mut Image<T, S>) {
-        let dev = &mut image.device.clone();
+        let mut dev = image.device.clone();
         dev.flip_horizontal(image, self.probability);
     }
 }
@@ -50,10 +52,14 @@ mod tests {
     use crate::device::cpu::Cpu;
     #[cfg(feature = "cuda")]
     use crate::device::cuda::Cuda;
+    #[cfg(feature = "vulkan")]
+    use crate::device::vulkan::Vulkan;
+    //use rusty_vk::public_types::DeviceType;
 
     #[test]
     fn test_flip_horizontal() {
         let src: Vec<u8> = vec![1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4];
+        //let dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
         //let dev = Cuda::try_new(0).unwrap();
         let dev = Cpu::default();
         let flipper = RandomFlipHorizontal::new(2.0);
@@ -73,9 +79,9 @@ mod tests {
         src.chunks_mut(w * h)
             .for_each(|chunk| chunk.copy_from_slice(&template));
         //let dev = Cuda::try_new(0).unwrap();
-        let dev = Cpu::default();
+        let mut dev = Cpu::default();
         let flipper = RandomFlipHorizontal::new(2.0);
-        let mut img: Image<u8, _> = Image::try_from_slice(&src, b, w, h, c, &dev).unwrap();
+        let mut img: Image<u8, _> = Image::try_from_slice(&src, b, w, h, c, &mut dev).unwrap();
         flipper.flip(&mut img);
         let dst = img.try_get_data().unwrap();
         dst.chunks(w * h).for_each(|chunk| {

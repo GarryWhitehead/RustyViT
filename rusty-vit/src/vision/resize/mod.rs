@@ -7,7 +7,7 @@ use crate::image::{Image, PixelType};
 
 pub(crate) trait InterpMode: Clone + Copy {}
 #[derive(Default, Copy, Clone)]
-struct Bilinear {}
+pub struct Bilinear {}
 impl InterpMode for Bilinear {}
 
 pub(crate) trait ResizeKernel<T, I: InterpMode>: DeviceStorage<T> {
@@ -56,11 +56,11 @@ mod tests {
 
     #[test]
     fn test_resize_upsample() {
-        let dev = Cpu::default();
+        let mut dev = Cpu::default();
         //let dev = Cuda::try_new(0).unwrap();
         let resizer = Resize::new(3, 4);
         let src = &[255, 0, 255, 255];
-        let mut img = Image::try_from_slice(src, 1, 2, 2, 1, &dev).unwrap();
+        let mut img = Image::try_from_slice(src, 1, 2, 2, 1, &mut dev).unwrap();
         let rz_img = resizer.resize::<u8, Bilinear, _>(&mut img);
         assert_eq!(
             &rz_img.try_get_data().unwrap(),
@@ -70,21 +70,21 @@ mod tests {
 
     #[test]
     fn test_resize_downsample() {
-        let dev = Cpu::default();
+        let mut dev = Cpu::default();
         //let dev = Cuda::try_new(0).unwrap();
         let resizer = Resize::new(2, 2);
         let src = &[255, 255, 0, 255, 255, 0, 255, 255, 0, 0, 0, 0];
-        let mut img = Image::try_from_slice(src, 1, 3, 4, 1, &dev).unwrap();
+        let mut img = Image::try_from_slice(src, 1, 3, 4, 1, &mut dev).unwrap();
         let rz_img = resizer.resize::<u8, Bilinear, _>(&mut img);
         assert_eq!(&rz_img.try_get_data().unwrap(), &[255, 96, 146, 55]);
     }
 
     #[test]
     fn test_resize_y_axis_only() {
-        let dev = Cpu::default();
+        let mut dev = Cpu::default();
         let resizer = Resize::new(3, 4);
         let src = &[255, 255, 0, 255, 255, 0, 0, 0, 0];
-        let mut img = Image::try_from_slice(src, 1, 3, 3, 1, &dev).unwrap();
+        let mut img = Image::try_from_slice(src, 1, 3, 3, 1, &mut dev).unwrap();
         let rz_img = resizer.resize::<u8, Bilinear, _>(&mut img);
         assert_eq!(
             &rz_img.try_get_data().unwrap(),

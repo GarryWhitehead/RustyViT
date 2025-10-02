@@ -8,8 +8,10 @@ use crate::type_traits::{BType, SafeZeros};
 use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
 use num::Zero;
 use num::traits::{FromBytes, ToBytes};
+use std::cell::RefCell;
 use std::error::Error;
 use std::ops::Add;
+use std::sync::Arc;
 
 pub trait ToFloat: Default + Copy + Clone + 'static {
     fn to_float(self) -> f32;
@@ -111,13 +113,14 @@ impl<T: PixelType, S: DeviceStorage<T>> Image<T, S> {
         channels: usize,
         dev: &S,
     ) -> Result<Image<T, S>, Box<dyn Error>> {
+        let buffer = dev.try_alloc_with_slice(slice)?;
         Ok(Image {
             batch_size,
             width,
             height,
             channels,
             strides: Self::compute_strides(batch_size, channels, width, height),
-            data: dev.try_alloc_with_slice(slice)?,
+            data: buffer,
             device: dev.clone(),
         })
     }

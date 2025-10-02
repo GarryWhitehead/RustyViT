@@ -1,9 +1,13 @@
+use image::metadata::Orientation::FlipHorizontal;
 use image::{EncodableLayout, GenericImageView, ImageReader};
 use rusty_vit::device::cpu::Cpu;
 #[cfg(feature = "cuda")]
 use rusty_vit::device::cuda::Cuda;
+use rusty_vit::device::vulkan::Vulkan;
 use rusty_vit::image::Image;
+use rusty_vit::vision::flip::RandomFlipHorizontal;
 use rusty_vit::vision::sep_filters::GaussianBlur;
+use rusty_vk::public_types::DeviceType;
 use show_image::event;
 
 fn image_to_planar(src: &[u8], width: usize, height: usize, channels: usize) -> Vec<u8> {
@@ -55,8 +59,10 @@ fn main() {
     );
 
     //let dev = Cpu::default();
-    let dev = Cuda::try_new(0).unwrap();
-    let conv: GaussianBlur<f32, u8, _> = GaussianBlur::try_new(1.0, 9, &dev).unwrap();
+    //let dev = Cuda::try_new(0).unwrap();
+    let dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+    //let mut conv: GaussianBlur<f32, u8, _> = GaussianBlur::try_new(1.0, 9, &dev).unwrap();
+    let flipper = RandomFlipHorizontal::new(0.5);
     let mut image = Image::try_from_slice(
         &p_img,
         1,
@@ -66,7 +72,8 @@ fn main() {
         &dev,
     )
     .unwrap();
-    conv.process(&mut image);
+    //conv.process(&mut image);
+    flipper.flip(&mut image);
 
     let i_img = image_to_interleaved(
         &image.try_get_data().unwrap(),
@@ -75,7 +82,7 @@ fn main() {
         3,
     );
 
-    let d_img = show_image::ImageView::new(
+    /*let d_img = show_image::ImageView::new(
         show_image::ImageInfo::rgb8(img.width(), img.height()),
         &i_img,
     );
@@ -98,7 +105,7 @@ fn main() {
         if let event::WindowEvent::CloseRequested(event) = &event {
             break;
         }
-    }
+    }*/
 }
 
 mod tests {

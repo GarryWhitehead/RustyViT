@@ -1,3 +1,6 @@
+fn main() {
+    todo!()
+}
 /*use clap::Parser;
 use rusty_vit::loaders::cifar;
 use rusty_vit::tensor::Tensor;
