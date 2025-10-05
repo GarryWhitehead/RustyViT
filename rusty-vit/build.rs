@@ -125,7 +125,6 @@ fn build_vulkan() {
             let filename = Path::new(path).file_name().unwrap().to_str().unwrap();
             let mut options = shaderc::CompileOptions::new().unwrap();
             options.add_macro_definition("PIXELTYPE", Some(ty));
-            options.set_generate_debug_info();
             let glsl_src = fs::read_to_string(&path).unwrap();
             let artifact = compiler
                 .compile_into_spirv(

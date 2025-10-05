@@ -43,7 +43,8 @@ where
         );
 
         let crop_img =
-            Image::try_new(src.batch_size, src.channels, crop_width, crop_height, self).unwrap();
+            Image::try_new(src.batch_size, crop_width, crop_height, src.channels, self).unwrap();
+
         for b in 0..src.batch_size {
             let slice_base = b * src.strides[0];
             let crop_slice_base = b * crop_img.strides[0];
