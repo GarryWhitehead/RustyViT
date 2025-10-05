@@ -2,7 +2,6 @@ use crate::device::vulkan::Vulkan;
 use crate::image::{Image, PixelType};
 use rand::Rng;
 use rusty_vk::public_types::ComputeWork;
-use std::ptr::null;
 
 trait KernelOp<TYPE> {
     const SPIRV_NAME: &'static str;
@@ -22,12 +21,14 @@ where
     Self: KernelOp<T>,
 {
     fn flip_horizontal(&mut self, src: &mut Image<T, Self>, prob: f32) {
-        let s = &mut self.clone();
-        let mut program = s.try_get_module(env!("OUT_DIR"), Self::SPIRV_NAME).unwrap();
-
+        let driver = self.driver.clone();
         // Initialise the UBO with the image parameters.
-        let ubo_data = [&[(src.width, src.height)]];
-        let ubo = self.alloc_ubo_from_slice(&ubo_data);
+        let ubo_data = &[src.width as u32, src.height as u32];
+        let ubo = self.alloc_ubo_from_slice(ubo_data);
+
+        let mut program = self
+            .try_get_module(env!("OUT_DIR"), Self::SPIRV_NAME)
+            .unwrap();
 
         let mut rng = rand::rng();
         for b in 0..src.batch_size {
@@ -39,9 +40,9 @@ where
                     let img_slice = src.data.slice(slice_start..slice_end).unwrap();
 
                     program.try_bind_ssbo::<T>("src_image", img_slice).unwrap();
-                    program.try_bind_ubo("image_info", ubo).unwrap();
+                    program.try_bind_ubo("image_info", &ubo).unwrap();
 
-                    self.driver
+                    driver
                         .borrow_mut()
                         .dispatch_compute(
                             &program,
@@ -52,8 +53,8 @@ where
                             ),
                         )
                         .unwrap();
-                    self.driver.borrow_mut().flush_cmds();
                 }
+                driver.borrow_mut().flush_cmds();
             }
         }
     }

@@ -60,9 +60,9 @@ fn main() {
 
     //let dev = Cpu::default();
     //let dev = Cuda::try_new(0).unwrap();
-    let dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+    let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
     //let mut conv: GaussianBlur<f32, u8, _> = GaussianBlur::try_new(1.0, 9, &dev).unwrap();
-    let flipper = RandomFlipHorizontal::new(0.5);
+    let flipper = RandomFlipHorizontal::new(0.9);
     let mut image = Image::try_from_slice(
         &p_img,
         1,
@@ -73,7 +73,7 @@ fn main() {
     )
     .unwrap();
     //conv.process(&mut image);
-    flipper.flip(&mut image);
+    flipper.flip(&mut image, &mut dev);
 
     let i_img = image_to_interleaved(
         &image.try_get_data().unwrap(),
@@ -82,7 +82,7 @@ fn main() {
         3,
     );
 
-    /*let d_img = show_image::ImageView::new(
+    let d_img = show_image::ImageView::new(
         show_image::ImageInfo::rgb8(img.width(), img.height()),
         &i_img,
     );
@@ -105,7 +105,7 @@ fn main() {
         if let event::WindowEvent::CloseRequested(event) = &event {
             break;
         }
-    }*/
+    }
 }
 
 mod tests {

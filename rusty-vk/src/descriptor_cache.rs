@@ -3,6 +3,7 @@ use crate::vk_shader::{
 };
 use ash::vk;
 use ash::vk::Handle;
+use log::debug;
 use std::collections::HashMap;
 
 pub const MAX_UBO_COUNT: usize = 8;
@@ -142,7 +143,7 @@ impl DescriptorCache {
         for i in 0..MAX_UBO_COUNT {
             if !self.desc_requires.ubos[i].is_null() {
                 buffer_infos[i].buffer = self.desc_requires.ubos[i];
-                buffer_infos[i].offset = 0;
+                buffer_infos[i].offset = self.desc_requires.ubo_offsets[i];
                 buffer_infos[i].range = self.desc_requires.ubo_sizes[i];
 
                 let mut write = vk::WriteDescriptorSet::default();
@@ -152,12 +153,16 @@ impl DescriptorCache {
                 write.dst_binding = i as u32;
                 write.dst_set = instance.sets[UBO_SHADER_BINDING];
                 write_desc_sets.push(write);
+                debug!(
+                    "UBO (bind = {}) descriptor write: range = {}; offset = {}",
+                    i, buffer_infos[i].range, buffer_infos[i].offset
+                );
             }
         }
         for i in 0..MAX_SSBO_COUNT {
             if !self.desc_requires.ssbos[i].is_null() {
                 ssbo_infos[i].buffer = self.desc_requires.ssbos[i];
-                ssbo_infos[i].offset = 0;
+                ssbo_infos[i].offset = self.desc_requires.ssbo_offsets[i];
                 ssbo_infos[i].range = self.desc_requires.ssbo_sizes[i];
 
                 let mut write = vk::WriteDescriptorSet::default();
@@ -167,6 +172,10 @@ impl DescriptorCache {
                 write.dst_binding = i as u32;
                 write.dst_set = instance.sets[SSBO_SHADER_BINDING];
                 write_desc_sets.push(write);
+                debug!(
+                    "SSBO (bind = {}) descriptor write: range = {}; offset = {}",
+                    i, ssbo_infos[i].range, ssbo_infos[i].offset
+                );
             }
         }
         for i in 0..MAX_STORAGE_IMAGE_COUNT {

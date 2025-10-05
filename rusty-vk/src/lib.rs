@@ -70,11 +70,6 @@ impl Driver {
         let instance = ContextInstance::new()?;
         let device = ContextDevice::new(&instance, device_type.to_vk())?;
 
-        if let Some(rd) = &mut rd {
-            println!("STARTING RENDERDOC CAPTURE DEVICE....");
-            rd.start_frame_capture(null(), null());
-            print!("RUNNNNNNING>.......");
-        }
         // Create the VMA allocator.
         let mut create_info = vk_mem::AllocatorCreateInfo::new(
             &instance.instance,
@@ -90,11 +85,7 @@ impl Driver {
             &device.device,
         );
         let descriptor_cache = DescriptorCache::new(&device.device);
-        if let Some(rd) = &mut rd {
-            println!("END RENDERDOC CAPTURE....");
-            rd.end_frame_capture(null(), null());
-            print!("RUNNNNNNING>.......");
-        }
+
         Ok(Self {
             device,
             instance,
@@ -121,22 +112,12 @@ impl Driver {
     }
 
     pub fn allocate_ssbo<T>(&mut self, size: usize) -> StorageBuffer<T> {
-        if let Some(rd) = &mut self.renderdoc {
-            println!("STARTING RENDERDOC CAPTURE BUFFER....");
-            rd.start_frame_capture(null(), null());
-            print!("RUNNNNNNING>.......");
-        }
         let handle = self.resource_cache.create_buffer(
             (std::mem::size_of::<T>() * size) as vk::DeviceSize,
             vk::BufferUsageFlags::STORAGE_BUFFER,
             &self.vma_allocator,
             BufferType::GpuToHost,
         );
-        if let Some(rd) = &mut self.renderdoc {
-            println!("ENDING RENDERDOC CAPTURE....");
-            rd.end_frame_capture(null(), null());
-            print!("RUNNNNNNING>.......");
-        }
         StorageBuffer::new(handle, size)
     }
 
@@ -184,11 +165,16 @@ impl Driver {
             return Err("Out of bounds slice.".into());
         }
         let mut buffer = self.resource_cache.get_buffer(&ssbo.handle);
-        let parts = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len()) };
+        let parts = unsafe {
+            std::slice::from_raw_parts(
+                data.as_ptr() as *const u8,
+                data.len() * std::mem::size_of::<T>(),
+            )
+        };
 
         buffer.map(
             parts.as_ptr(),
-            data.len() as vk::DeviceSize,
+            parts.len() as vk::DeviceSize,
             0,
             &self.vma_allocator,
         );
@@ -227,9 +213,7 @@ impl Driver {
         work: &ComputeWork,
     ) -> Result<(), Box<dyn Error>> {
         if let Some(rd) = &mut self.renderdoc {
-            println!("STARTING RENDERDOC CAPTURE....");
             rd.start_frame_capture(null(), null());
-            print!("RUNNNNNNING>.......");
         }
 
         let cmds = self.compute_commands.get(&self.device.device);
@@ -293,8 +277,6 @@ impl Driver {
         };
         if let Some(rd) = &mut self.renderdoc {
             rd.end_frame_capture(null(), null());
-            println!("YEAH!!");
-            rd.trigger_capture();
         }
         Ok(())
     }
@@ -331,9 +313,9 @@ impl Driver {
 
     pub fn destroy(&mut self) {
         // Manually destroy all objects as relying on RAII for this seems too risky.
+        self.compute_commands.destroy(&self.device.device);
         self.sampler_cache.destroy(&self.device.device);
         self.staging_pool.destroy(&self.vma_allocator);
-        //self.compute_commands.destroy(&self.device.device);
         self.resource_cache
             .destroy(&self.vma_allocator, &self.device.device);
         self.descriptor_cache.destroy(&self.device.device);

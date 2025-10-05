@@ -3,6 +3,7 @@ use crate::descriptor_cache::*;
 use crate::public_types::{BufferView, TextureView, UniformBuffer};
 use crate::resource_cache::TextureHandle;
 use ash::vk;
+use ash::vk::ShaderModule;
 use rspirv_reflect::Reflection;
 use std::{collections::HashMap, error::Error, ops::Range};
 
@@ -150,7 +151,7 @@ impl<'a> ShaderProgram<'a> {
     pub fn try_bind_ubo(
         &mut self,
         ubo_name: &str,
-        buffer: UniformBuffer,
+        buffer: &UniformBuffer,
     ) -> Result<(), Box<dyn Error>> {
         let binding = self.binding_map.get(ubo_name);
         match binding {
