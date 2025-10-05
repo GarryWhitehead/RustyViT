@@ -14,7 +14,7 @@ impl<T: PixelType, F: FloatType> Conv<T, F> for Cpu {
         let chunk_size = src.channels * image_size;
 
         src.data.par_chunks_mut(chunk_size).for_each(|in_slice| {
-            x_kernel.device.convolution_kernel::<T, F>(
+            x_kernel.clone().device.convolution_kernel::<T, F>(
                 in_slice,
                 src.width,
                 src.height,
@@ -28,7 +28,7 @@ impl<T: PixelType, F: FloatType> Conv<T, F> for Cpu {
 
 impl Cpu {
     fn convolution_kernel<T: PixelType, F: FloatType>(
-        &self,
+        &mut self,
         src: &mut [T],
         width: usize,
         height: usize,

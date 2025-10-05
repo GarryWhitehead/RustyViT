@@ -41,7 +41,7 @@ impl<F: FloatType + Sum + DivAssign, T: PixelType, D: DeviceStorage<F> + Conv<T,
         Ok(Self { conv_kernel: conv })
     }
 
-    pub fn process(&self, src: &mut Image<T, D>) {
+    pub fn process(&mut self, src: &mut Image<T, D>) {
         self.conv_kernel.process(src);
     }
 }
@@ -54,11 +54,11 @@ mod tests {
 
     #[test]
     fn test_blur() {
-        let dev = Cpu::default();
+        let mut dev = Cpu::default();
         //let dev = Cuda::try_new(0).unwrap();
         let data = &[3, 5, 2, 1, 0, 0, 3, 1, 6, 9, 10, 0, 5, 3, 2, 1];
-        let blur = GaussianBlur::<f32, u8, _>::try_new(2.0, 3, &dev).unwrap();
-        let mut img: Image<u8, _> = Image::try_from_slice(&data, 1, 16, 16, 1, &dev).unwrap();
+        let mut blur = GaussianBlur::<f32, u8, _>::try_new(2.0, 3, &mut dev).unwrap();
+        let mut img: Image<u8, _> = Image::try_from_slice(data, 1, 16, 16, 1, &mut dev).unwrap();
         blur.process(&mut img);
         assert_eq!(
             img.try_get_data().unwrap(),

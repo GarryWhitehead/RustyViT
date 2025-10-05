@@ -88,10 +88,10 @@ mod tests {
 
     #[test]
     fn test_make_border_none_power_two_dims() {
-        let dev = Cpu::default();
+        let mut dev = Cpu::default();
         let mb = MakeBorder::new(1, 0);
         let mut src: Image<u8, _> =
-            Image::try_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9], 1, 3, 3, 1, &dev).unwrap();
+            Image::try_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9], 1, 3, 3, 1, &mut dev).unwrap();
         let dst = mb.process::<Constant, _>(&mut src);
         assert_eq!(
             &dst.try_get_data().unwrap(),
@@ -104,14 +104,14 @@ mod tests {
     #[test]
     fn test_make_border_batched() {
         //let dev = Cuda::try_new(0).unwrap();
-        let dev = Cpu::default();
+        let mut dev = Cpu::default();
         let (b, c, w, h) = (20, 3, 3, 3);
         let template = &[1, 2, 3, 4, 5, 6, 7, 8, 9];
         let mut src = vec![0u8; b * c * w * h];
         src.chunks_mut(w * h).for_each(|p| {
             p.copy_from_slice(template);
         });
-        let mut img: Image<u8, _> = Image::try_from_slice(&src, 20, 3, 3, 3, &dev).unwrap();
+        let mut img: Image<u8, _> = Image::try_from_slice(&src, 20, 3, 3, 3, &mut dev).unwrap();
         let mb = MakeBorder::new(1, 0);
         let mb_img = mb.process::<Constant, _>(&mut img);
         let dst = mb_img.try_get_data().unwrap();

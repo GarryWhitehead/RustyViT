@@ -8,6 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$/examples/general_vit/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/examples/image_processing/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rusty-vit/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rusty-vk/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

@@ -1,10 +1,17 @@
-use std::path::PathBuf;
+use shaderc::ShaderKind;
+use std::fs;
+use std::fs::File;
+use std::io::Read;
+use std::path::{Path, PathBuf};
 
 fn main() {
     #[cfg(feature = "cuda")]
     build_cuda();
+    #[cfg(feature = "vulkan")]
+    build_vulkan();
 }
 
+#[cfg(feature = "cuda")]
 fn build_cuda() {
     let env_vars = [
         "CUDA_PATH",
@@ -88,4 +95,57 @@ fn build_cuda() {
             String::from_utf8_lossy(&output.stderr)
         );
     }
+}
+
+fn to_rust_type(ty: &str) -> &str {
+    match ty {
+        "uint8_t" => "u8",
+        "uint16_t" => "u16",
+        "float" => "f32",
+        _ => panic!("Unknown type {}", ty),
+    }
+}
+
+#[cfg(feature = "vulkan")]
+fn build_vulkan() {
+    // Glob for glsl files.
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let glsl_paths: Vec<PathBuf> = glob::glob("src/**/*.glsl")
+        .unwrap()
+        .map(|path| path.unwrap())
+        .collect();
+    glsl_paths
+        .iter()
+        .for_each(|path| println!("cargo:rerun-if-changed={}", path.display()));
+
+    let mut compiler = shaderc::Compiler::new().unwrap();
+
+    glsl_paths.iter().for_each(|path| {
+        ["uint8_t", "uint16_t", "float"].map(|ty| {
+            let filename = Path::new(path).file_name().unwrap().to_str().unwrap();
+            let mut options = shaderc::CompileOptions::new().unwrap();
+            options.add_macro_definition("PIXELTYPE", Some(ty));
+            options.set_generate_debug_info();
+            let glsl_src = fs::read_to_string(&path).unwrap();
+            let artifact = compiler
+                .compile_into_spirv(
+                    &glsl_src,
+                    ShaderKind::Compute,
+                    filename,
+                    "main",
+                    Some(&options),
+                )
+                .unwrap();
+            fs::write(
+                format!(
+                    "{}/{}_{}.spv",
+                    out_dir,
+                    to_rust_type(ty),
+                    Path::new(filename).file_stem().unwrap().to_str().unwrap()
+                ),
+                artifact.as_binary_u8(),
+            )
+            .unwrap();
+        });
+    });
 }
