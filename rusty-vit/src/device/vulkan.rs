@@ -60,7 +60,7 @@ impl<'a> Drop for Vulkan<'a> {
         for (_key, prog) in self.modules.iter_mut() {
             prog.destroy(&self.driver.borrow());
         }
-        self.driver.borrow_mut().destroy();
+        //self.driver.borrow_mut().destroy();
     }
 }
 

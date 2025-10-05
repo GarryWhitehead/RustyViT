@@ -268,7 +268,7 @@ impl Driver {
         self.pline_cache.bind_shader_module(program.module);
         self.pline_cache.bind_layout(layout.layout);
         self.pline_cache
-            .bind_pipeline(cmds.buffer, &self.device.device);
+            .bind_pipeline(cmds.buffer, &program, &self.device.device);
 
         unsafe {
             self.device

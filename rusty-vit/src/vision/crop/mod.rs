@@ -1,6 +1,8 @@
 mod crop_cpu;
 #[cfg(feature = "cuda")]
 mod crop_cu;
+#[cfg(feature = "vulkan")]
+mod crop_vk;
 
 use crate::device::DeviceStorage;
 use crate::image::{Image, PixelType};
@@ -53,8 +55,11 @@ impl RandomCrop {
         }
     }
 
-    pub fn crop<P: PixelType, D: CropKernel<P>>(&self, src: &mut Image<P, D>) -> Image<P, D> {
-        let dev = &mut src.device.clone();
+    pub fn crop<P: PixelType, D: CropKernel<P>>(
+        &self,
+        src: &mut Image<P, D>,
+        dev: &mut D,
+    ) -> Image<P, D> {
         dev.crop(src, self.crop_width, self.crop_height, self.x, self.y)
     }
 }
@@ -64,15 +69,19 @@ mod tests {
     use crate::device::cpu::Cpu;
     #[cfg(feature = "cuda")]
     use crate::device::cuda::Cuda;
+    #[cfg(feature = "vulkan")]
+    use crate::device::vulkan::Vulkan;
+    //use rusty_vk::public_types::DeviceType;
 
     #[test]
     fn test_crop() {
         let src = &[1, 2, 3, 4, 5, 6, 7, 8, 9];
         //let dev = Cuda::try_new(0).unwrap();
         let mut dev = Cpu::default();
+        //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
         let cropper = RandomCrop::new(3, 3, 3, 3);
         let mut img: Image<u8, _> = Image::try_from_slice(src, 1, 3, 3, 1, &mut dev).unwrap();
-        let dst = cropper.crop(&mut img);
+        let dst = cropper.crop(&mut img, &mut dev);
         assert_eq!(dst.try_get_data().unwrap(), src);
     }
 
@@ -80,6 +89,7 @@ mod tests {
     fn test_crop_batched() {
         //let dev = Cuda::try_new(0).unwrap();
         let mut dev = Cpu::default();
+        //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
         let (b, c, w, h) = (20, 3, 3, 3);
         let template = &[1, 2, 3, 4, 5, 6, 7, 8, 9];
         let mut src = vec![0u8; b * c * w * h];
@@ -88,7 +98,7 @@ mod tests {
         });
         let cropper = RandomCrop::new(3, 3, 3, 3);
         let mut img: Image<u8, _> = Image::try_from_slice(&src, b, w, h, c, &mut dev).unwrap();
-        let crop_img = cropper.crop(&mut img);
+        let crop_img = cropper.crop(&mut img, &mut dev);
         let crop_img = crop_img.try_get_data().unwrap();
         crop_img.chunks(w * h).for_each(|slice| {
             assert_eq!(slice, template);

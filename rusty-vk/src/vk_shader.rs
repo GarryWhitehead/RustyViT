@@ -22,6 +22,12 @@ impl BindInfo {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct SpecConstants {
+    pub(crate) data: Vec<u8>,
+    pub(crate) mappings: Vec<vk::SpecializationMapEntry>,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct ShaderProgram<'a> {
     pub(crate) layout_bindings: HashMap<u32, Vec<vk::DescriptorSetLayoutBinding<'a>>>,
@@ -31,6 +37,7 @@ pub struct ShaderProgram<'a> {
     pub(crate) ubos: [Option<BufferView>; MAX_UBO_COUNT],
     pub(crate) ssbos: [Option<BufferView>; MAX_SSBO_COUNT],
     pub(crate) storage_images: [Option<TextureView>; MAX_STORAGE_IMAGE_COUNT],
+    pub(crate) spec_consts: SpecConstants,
 }
 
 impl<'a> ShaderProgram<'a> {
@@ -70,6 +77,7 @@ impl<'a> ShaderProgram<'a> {
             ubos: [const { None }; MAX_UBO_COUNT],
             ssbos: [const { None }; MAX_SSBO_COUNT],
             storage_images: [const { None }; MAX_STORAGE_IMAGE_COUNT],
+            spec_consts: SpecConstants::default(),
         })
     }
 
@@ -209,6 +217,18 @@ impl<'a> ShaderProgram<'a> {
             }
         }
         Ok(())
+    }
+
+    pub fn bind_spec_constant<T>(&mut self, id: u32, data: &T) {
+        let parts =
+            unsafe { std::slice::from_raw_parts([data].as_ptr() as *const u8, size_of::<T>()) };
+        let mapping = vk::SpecializationMapEntry {
+            constant_id: id,
+            offset: self.spec_consts.data.len() as u32,
+            size: parts.len(),
+        };
+        self.spec_consts.data.extend_from_slice(parts);
+        self.spec_consts.mappings.push(mapping);
     }
 
     pub fn destroy(&mut self, driver: &Driver) {

@@ -1,6 +1,8 @@
 use crate::descriptor_cache::MAX_DESC_SET_COUNT;
+use crate::vk_shader::{ShaderProgram, SpecConstants};
 use ash::vk;
 use ash::vk::Handle;
+use std::ffi::c_void;
 use std::{collections::HashMap, hash::Hash};
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Default)]
@@ -79,7 +81,12 @@ impl PipelineCache {
         }
     }
 
-    pub fn bind_pipeline(&mut self, cmds: vk::CommandBuffer, device: &ash::Device) {
+    pub fn bind_pipeline(
+        &mut self,
+        cmds: vk::CommandBuffer,
+        program: &ShaderProgram,
+        device: &ash::Device,
+    ) {
         let p = self.pipelines.get_mut(&self.pipeline_requires);
         let pline = match p {
             Some(pline) => *pline,
@@ -88,6 +95,7 @@ impl PipelineCache {
                     &self.pipeline_requires.layout,
                     &self.pipeline_requires.module,
                     device,
+                    &program.spec_consts,
                 );
                 let pline = PLine::new(pipeline, cache);
                 self.pipelines.insert(self.pipeline_requires, pline.clone());
@@ -101,15 +109,26 @@ impl PipelineCache {
         layout: &vk::PipelineLayout,
         module: &vk::ShaderModule,
         device: &ash::Device,
+        spec_consts: &SpecConstants,
     ) -> (vk::PipelineCache, vk::Pipeline) {
         assert!(!layout.is_null());
 
-        let stage = vk::PipelineShaderStageCreateInfo {
+        let mut stage = vk::PipelineShaderStageCreateInfo {
             stage: vk::ShaderStageFlags::COMPUTE,
             module: *module,
             p_name: c"main".as_ptr(),
             ..Default::default()
         };
+        // Add specialization constants.
+        let si = vk::SpecializationInfo {
+            data_size: spec_consts.data.iter().len(),
+            p_data: spec_consts.data.as_ptr() as *const c_void,
+            map_entry_count: spec_consts.mappings.len() as u32,
+            p_map_entries: spec_consts.mappings.as_ptr(),
+            ..Default::default()
+        };
+        stage.p_specialization_info = &si;
+
         let cache = vk::PipelineCacheCreateInfo {
             ..Default::default()
         };
