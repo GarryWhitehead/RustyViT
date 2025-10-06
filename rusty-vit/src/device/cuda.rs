@@ -25,6 +25,7 @@ use num::Zero;
 pub struct Cuda {
     pub(crate) ctx: Arc<CudaContext>,
     pub(crate) stream0: Arc<CudaStream>,
+    pub(crate) stream1: Arc<CudaStream>,
     pub(crate) kernel_funcs: HashMap<String, CudaFunction>,
 }
 
@@ -32,10 +33,12 @@ impl Cuda {
     pub fn try_new(ordinal: usize) -> Result<Cuda, Box<dyn Error>> {
         let ctx = CudaContext::new(ordinal)?;
         debug!("Created new Cuda context: {:?}", ctx);
-        let stream0 = ctx.default_stream().fork()?;
+        let stream0 = ctx.default_stream();
+        let stream1 = ctx.default_stream().fork()?;
         Ok(Cuda {
             ctx,
             stream0,
+            stream1,
             kernel_funcs: HashMap::new(),
         })
     }
@@ -120,7 +123,7 @@ impl<T: BType> DeviceStorage<T> for Cuda {
         vec.len()
     }
 
-    fn try_sync_stream0(&self) -> Result<(), Box<dyn Error>> {
+    fn try_sync(&self) -> Result<(), Box<dyn Error>> {
         self.stream0.synchronize()?;
         Ok(())
     }

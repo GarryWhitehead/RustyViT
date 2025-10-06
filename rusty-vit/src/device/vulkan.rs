@@ -93,7 +93,7 @@ impl<T: num::Zero + Clone + Send + Sync + Debug + 'static> DeviceStorage<T> for 
         v.element_count()
     }
 
-    fn try_sync_stream0(&self) -> Result<(), Box<dyn Error>> {
-        Ok(())
+    fn try_sync(&self) -> Result<(), Box<dyn Error>> {
+        Ok(self.driver.borrow_mut().sync_cmds())
     }
 }

@@ -24,7 +24,7 @@ pub trait DeviceStorage<T>: Clone {
 
     fn len(vec: &Self::Vec) -> usize;
 
-    fn try_sync_stream0(&self) -> Result<(), Box<dyn Error>>;
+    fn try_sync(&self) -> Result<(), Box<dyn Error>>;
 }
 
 pub trait ToTensor<P: PixelType, I: DeviceStorage<P>, F: FloatType, D: DeviceStorage<F>> {

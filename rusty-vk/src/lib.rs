@@ -281,6 +281,10 @@ impl Driver {
         Ok(())
     }
 
+    pub fn sync_cmds(&mut self) {
+        self.compute_commands.free_cmd_buffers(&self.device.device);
+    }
+
     pub fn flush_cmds(&mut self) {
         self.compute_commands.flush(&self.device.device);
     }

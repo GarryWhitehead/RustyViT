@@ -59,7 +59,7 @@ impl<T: Clone + Copy + num::Zero + Sync + Send + Debug + 'static> DeviceStorage<
         vec.len()
     }
 
-    fn try_sync_stream0(&self) -> Result<(), Box<dyn Error>> {
+    fn try_sync(&self) -> Result<(), Box<dyn Error>> {
         Ok(())
     }
 }
