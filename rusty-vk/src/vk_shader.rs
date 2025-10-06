@@ -3,13 +3,26 @@ use crate::descriptor_cache::*;
 use crate::public_types::{BufferView, TextureView, UniformBuffer};
 use crate::resource_cache::TextureHandle;
 use ash::vk;
-use ash::vk::ShaderModule;
+use ash::vk::{DescriptorPool, ShaderModule};
 use rspirv_reflect::Reflection;
 use std::{collections::HashMap, error::Error, ops::Range};
 
 pub const UBO_SHADER_BINDING: usize = 0;
 pub const SSBO_SHADER_BINDING: usize = 1;
 pub const IMAGE_STORAGE_SHADER_BINDING: usize = 2;
+
+#[derive(Debug, Clone, Copy)]
+pub struct WorkSize {
+    pub x: u32,
+    pub y: u32,
+    pub z: u32,
+}
+
+impl Default for WorkSize {
+    fn default() -> Self {
+        Self { x: 1, y: 1, z: 1 }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct BindInfo {
@@ -29,8 +42,7 @@ pub struct SpecConstants {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct ShaderProgram<'a> {
-    pub(crate) layout_bindings: HashMap<u32, Vec<vk::DescriptorSetLayoutBinding<'a>>>,
+pub struct ShaderProgram {
     pub(crate) binding_map: HashMap<String, BindInfo>,
     pub(crate) desc_set_layouts: [vk::DescriptorSetLayout; MAX_DESC_SET_COUNT],
     pub(crate) module: vk::ShaderModule,
@@ -38,11 +50,12 @@ pub struct ShaderProgram<'a> {
     pub(crate) ssbos: [Option<BufferView>; MAX_SSBO_COUNT],
     pub(crate) storage_images: [Option<TextureView>; MAX_STORAGE_IMAGE_COUNT],
     pub(crate) spec_consts: SpecConstants,
+    pub(crate) work_size: WorkSize,
 }
 
-impl<'a> ShaderProgram<'a> {
+impl<'a> ShaderProgram {
     pub fn try_new(spirv_bytes: &[u8], driver: &Driver) -> Result<Self, Box<dyn Error>> {
-        let (layout_bindings, binding_map) = Self::reflect_spirv(spirv_bytes)?;
+        let (layout_bindings, binding_map, work_size) = Self::reflect_spirv(spirv_bytes)?;
         let mut desc_set_layouts: [vk::DescriptorSetLayout; MAX_DESC_SET_COUNT] =
             [Default::default(); MAX_DESC_SET_COUNT];
 
@@ -70,7 +83,6 @@ impl<'a> ShaderProgram<'a> {
         }
         let module = Self::create_shader_module(&spirv_words, &driver.device.device)?;
         Ok(ShaderProgram {
-            layout_bindings,
             binding_map,
             desc_set_layouts,
             module,
@@ -78,6 +90,7 @@ impl<'a> ShaderProgram<'a> {
             ssbos: [const { None }; MAX_SSBO_COUNT],
             storage_images: [const { None }; MAX_STORAGE_IMAGE_COUNT],
             spec_consts: SpecConstants::default(),
+            work_size,
         })
     }
 
@@ -87,10 +100,18 @@ impl<'a> ShaderProgram<'a> {
         (
             HashMap<u32, Vec<vk::DescriptorSetLayoutBinding<'a>>>,
             HashMap<String, BindInfo>,
+            WorkSize,
         ),
         Box<dyn Error>,
     > {
         let reflect = Reflection::new_from_spirv(data)?;
+        let (wx, wy, wz) = reflect.get_compute_group_size().unwrap();
+        let work_size = WorkSize {
+            x: wx,
+            y: wy,
+            z: wz,
+        };
+
         let mut layout_bindings: HashMap<u32, Vec<vk::DescriptorSetLayoutBinding<'a>>> =
             HashMap::new();
         let mut binding_map: HashMap<String, BindInfo> = HashMap::new();
@@ -140,7 +161,7 @@ impl<'a> ShaderProgram<'a> {
                 binding_map.insert(info.name.clone(), BindInfo::new(bind, info.ty));
             }
         }
-        Ok((layout_bindings, binding_map))
+        Ok((layout_bindings, binding_map, work_size))
     }
 
     pub fn create_shader_module(
@@ -237,5 +258,9 @@ impl<'a> ShaderProgram<'a> {
             unsafe { device.destroy_descriptor_set_layout(*layout, None) };
         }
         unsafe { device.destroy_shader_module(self.module, None) };
+    }
+
+    pub fn get_work_size(&self) -> WorkSize {
+        self.work_size
     }
 }

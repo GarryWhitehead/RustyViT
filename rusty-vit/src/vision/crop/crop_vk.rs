@@ -7,17 +7,17 @@ trait KernelOp<TYPE> {
     const SPIRV_NAME: &'static str;
 }
 
-impl<'a> KernelOp<u8> for Vulkan<'a> {
+impl KernelOp<u8> for Vulkan {
     const SPIRV_NAME: &'static str = "u8_crop.spv";
 }
-impl<'a> KernelOp<u16> for Vulkan<'a> {
+impl KernelOp<u16> for Vulkan {
     const SPIRV_NAME: &'static str = "u16_crop.spv";
 }
-impl<'a> KernelOp<f32> for Vulkan<'a> {
+impl KernelOp<f32> for Vulkan {
     const SPIRV_NAME: &'static str = "f32_crop.spv";
 }
 
-impl<'a, T: PixelType> super::CropKernel<T> for Vulkan<'a>
+impl<T: PixelType> super::CropKernel<T> for Vulkan
 where
     Self: KernelOp<T>,
 {
@@ -69,13 +69,14 @@ where
                     .unwrap();
                 program.try_bind_ubo("image_info", &ubo).unwrap();
 
+                let work_size = program.get_work_size();
                 driver
                     .borrow_mut()
                     .dispatch_compute(
                         &program,
                         &ComputeWork::new(
-                            (32 + crop_width as u32 - 1) / 32,
-                            (8 + crop_height as u32 - 1) / 8,
+                            Self::div_up(crop_width as u32, work_size.x),
+                            Self::div_up(crop_height as u32, work_size.y),
                             1,
                         ),
                     )

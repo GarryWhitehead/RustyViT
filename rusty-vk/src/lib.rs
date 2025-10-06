@@ -203,7 +203,7 @@ impl Driver {
         unsafe {
             self.device
                 .device
-                .cmd_fill_buffer(cmds.buffer, buffer.buffer, 0, buffer.size, 0)
+                .cmd_fill_buffer(cmds.buffer, buffer.buffer, 0, vk::WHOLE_SIZE, 0)
         };
     }
 
@@ -279,6 +279,10 @@ impl Driver {
             rd.end_frame_capture(null(), null());
         }
         Ok(())
+    }
+
+    pub fn sync_cmds(&mut self) {
+        self.compute_commands.free_cmd_buffers(&self.device.device);
     }
 
     pub fn flush_cmds(&mut self) {

@@ -6,17 +6,17 @@ use rusty_vk::public_types::ComputeWork;
 trait KernelOp<TYPE> {
     const SPIRV_NAME: &'static str;
 }
-impl<'a> KernelOp<u8> for Vulkan<'a> {
+impl KernelOp<u8> for Vulkan {
     const SPIRV_NAME: &'static str = "u8_flip.spv";
 }
-impl<'a> KernelOp<u16> for Vulkan<'a> {
+impl KernelOp<u16> for Vulkan {
     const SPIRV_NAME: &'static str = "u16_flip.spv";
 }
-impl<'a> KernelOp<f32> for Vulkan<'a> {
+impl KernelOp<f32> for Vulkan {
     const SPIRV_NAME: &'static str = "f32_flip.spv";
 }
 
-impl<'a, T: PixelType> super::HorizFlipKernel<T> for Vulkan<'a>
+impl<T: PixelType> super::HorizFlipKernel<T> for Vulkan
 where
     Self: KernelOp<T>,
 {
@@ -42,13 +42,14 @@ where
                     program.try_bind_ssbo::<T>("src_image", img_slice).unwrap();
                     program.try_bind_ubo("image_info", &ubo).unwrap();
 
+                    let work_size = program.get_work_size();
                     driver
                         .borrow_mut()
                         .dispatch_compute(
                             &program,
                             &ComputeWork::new(
-                                (32 + src.width as u32 - 1) / 32,
-                                (8 + src.height as u32 - 1) / 8,
+                                Self::div_up(src.width as u32, work_size.x),
+                                Self::div_up(src.height as u32, work_size.y),
                                 1,
                             ),
                         )

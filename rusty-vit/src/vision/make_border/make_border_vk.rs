@@ -12,46 +12,46 @@ trait KernelOp<T: PixelType, B: BorderMode> {
     const BORDER_ID: u32;
 }
 
-impl<'a> KernelOp<u8, Constant> for Vulkan<'a> {
+impl KernelOp<u8, Constant> for Vulkan {
     const SPIRV_NAME: &'static str = "u8_make_border.spv";
     const BORDER_ID: u32 = CONSTANT_BORDER;
 }
-impl<'a> KernelOp<u16, Constant> for Vulkan<'a> {
+impl KernelOp<u16, Constant> for Vulkan {
     const SPIRV_NAME: &'static str = "u16_make_border.spv";
     const BORDER_ID: u32 = CONSTANT_BORDER;
 }
-impl<'a> KernelOp<f32, Constant> for Vulkan<'a> {
+impl KernelOp<f32, Constant> for Vulkan {
     const SPIRV_NAME: &'static str = "f32_make_border.spv";
     const BORDER_ID: u32 = CONSTANT_BORDER;
 }
 
-impl<'a> KernelOp<u8, ClampToEdge> for Vulkan<'a> {
+impl KernelOp<u8, ClampToEdge> for Vulkan {
     const SPIRV_NAME: &'static str = "u8_make_border.spv";
     const BORDER_ID: u32 = CLAMP_TO_EDGE_BORDER;
 }
-impl<'a> KernelOp<u16, ClampToEdge> for Vulkan<'a> {
+impl KernelOp<u16, ClampToEdge> for Vulkan {
     const SPIRV_NAME: &'static str = "u16_make_border.spv";
     const BORDER_ID: u32 = CLAMP_TO_EDGE_BORDER;
 }
-impl<'a> KernelOp<f32, ClampToEdge> for Vulkan<'a> {
+impl KernelOp<f32, ClampToEdge> for Vulkan {
     const SPIRV_NAME: &'static str = "f32_make_border.spv";
     const BORDER_ID: u32 = CLAMP_TO_EDGE_BORDER;
 }
 
-impl<'a> KernelOp<u8, Mirror> for Vulkan<'a> {
+impl KernelOp<u8, Mirror> for Vulkan {
     const SPIRV_NAME: &'static str = "u8_make_border.spv";
     const BORDER_ID: u32 = MIRROR_BORDER;
 }
-impl<'a> KernelOp<u16, Mirror> for Vulkan<'a> {
+impl KernelOp<u16, Mirror> for Vulkan {
     const SPIRV_NAME: &'static str = "u16_make_border.spv";
     const BORDER_ID: u32 = MIRROR_BORDER;
 }
-impl<'a> KernelOp<f32, Mirror> for Vulkan<'a> {
+impl KernelOp<f32, Mirror> for Vulkan {
     const SPIRV_NAME: &'static str = "f32_make_border.spv";
     const BORDER_ID: u32 = MIRROR_BORDER;
 }
 
-impl<T: PixelType, B: BorderMode> super::MakeBorderKernel<T, B> for Vulkan<'_>
+impl<T: PixelType, B: BorderMode> super::MakeBorderKernel<T, B> for Vulkan
 where
     Self: KernelOp<T, B>,
 {
@@ -99,13 +99,14 @@ where
                     .unwrap();
                 program.try_bind_ubo("image_info", &ubo).unwrap();
 
+                let work_size = program.get_work_size();
                 driver
                     .borrow_mut()
                     .dispatch_compute(
                         &program,
                         &ComputeWork::new(
-                            (32 + src.width as u32 - 1) / 32,
-                            (8 + src.height as u32 - 1) / 8,
+                            Self::div_up(src.width as u32, work_size.x),
+                            Self::div_up(src.height as u32, work_size.y),
                             1,
                         ),
                     )
