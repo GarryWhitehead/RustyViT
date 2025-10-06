@@ -240,9 +240,9 @@ impl<'a> ShaderProgram {
         Ok(())
     }
 
-    pub fn bind_spec_constant<T>(&mut self, id: u32, data: &T) {
+    pub fn bind_spec_constant<T>(&mut self, id: u32, data: &[T]) {
         let parts =
-            unsafe { std::slice::from_raw_parts([data].as_ptr() as *const u8, size_of::<T>()) };
+            unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, size_of::<T>()) };
         let mapping = vk::SpecializationMapEntry {
             constant_id: id,
             offset: self.spec_consts.data.len() as u32,
