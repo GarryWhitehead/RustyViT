@@ -203,7 +203,7 @@ impl Driver {
         unsafe {
             self.device
                 .device
-                .cmd_fill_buffer(cmds.buffer, buffer.buffer, 0, buffer.size, 0)
+                .cmd_fill_buffer(cmds.buffer, buffer.buffer, 0, vk::WHOLE_SIZE, 0)
         };
     }
 
