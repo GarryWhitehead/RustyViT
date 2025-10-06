@@ -1,74 +1,61 @@
 use crate::device::vulkan::Vulkan;
 use crate::image::{Image, PixelType};
-use crate::vision::make_border::{BorderMode, ClampToEdge, Constant, Mirror};
+use crate::vision::resize::{Bilinear, InterpMode, ResizeKernel};
 use rusty_vk::public_types::ComputeWork;
 
-// Border type ids correspond to those found in the GLSL shader.
-const CONSTANT_BORDER: u32 = 0;
-const CLAMP_TO_EDGE_BORDER: u32 = 1;
-const MIRROR_BORDER: u32 = 2;
+// Filter type ids correspond to those found in the GLSL shader.
+const FILTER_OP_BILINEAR: u32 = 0;
 
-trait KernelOp<T: PixelType, B: BorderMode> {
+trait KernelOp<T: PixelType, I: InterpMode> {
     const SPIRV_NAME: &'static str;
-    const BORDER_ID: u32;
+    const FILTER_OP: u32;
 }
 
-impl KernelOp<u8, Constant> for Vulkan {
-    const SPIRV_NAME: &'static str = "u8_make_border.spv";
-    const BORDER_ID: u32 = CONSTANT_BORDER;
+impl KernelOp<u8, Bilinear> for Vulkan {
+    const SPIRV_NAME: &'static str = "u8_resize.spv";
+    const FILTER_OP: u32 = FILTER_OP_BILINEAR;
 }
-impl KernelOp<u16, Constant> for Vulkan {
-    const SPIRV_NAME: &'static str = "u16_make_border.spv";
-    const BORDER_ID: u32 = CONSTANT_BORDER;
+impl KernelOp<u16, Bilinear> for Vulkan {
+    const SPIRV_NAME: &'static str = "u16_resize.spv";
+    const FILTER_OP: u32 = FILTER_OP_BILINEAR;
 }
-impl KernelOp<f32, Constant> for Vulkan {
-    const SPIRV_NAME: &'static str = "f32_make_border.spv";
-    const BORDER_ID: u32 = CONSTANT_BORDER;
-}
-
-impl KernelOp<u8, ClampToEdge> for Vulkan {
-    const SPIRV_NAME: &'static str = "u8_make_border.spv";
-    const BORDER_ID: u32 = CLAMP_TO_EDGE_BORDER;
-}
-impl KernelOp<u16, ClampToEdge> for Vulkan {
-    const SPIRV_NAME: &'static str = "u16_make_border.spv";
-    const BORDER_ID: u32 = CLAMP_TO_EDGE_BORDER;
-}
-impl KernelOp<f32, ClampToEdge> for Vulkan {
-    const SPIRV_NAME: &'static str = "f32_make_border.spv";
-    const BORDER_ID: u32 = CLAMP_TO_EDGE_BORDER;
+impl KernelOp<f32, Bilinear> for Vulkan {
+    const SPIRV_NAME: &'static str = "f32_resize.spv";
+    const FILTER_OP: u32 = FILTER_OP_BILINEAR;
 }
 
-impl KernelOp<u8, Mirror> for Vulkan {
-    const SPIRV_NAME: &'static str = "u8_make_border.spv";
-    const BORDER_ID: u32 = MIRROR_BORDER;
-}
-impl KernelOp<u16, Mirror> for Vulkan {
-    const SPIRV_NAME: &'static str = "u16_make_border.spv";
-    const BORDER_ID: u32 = MIRROR_BORDER;
-}
-impl KernelOp<f32, Mirror> for Vulkan {
-    const SPIRV_NAME: &'static str = "f32_make_border.spv";
-    const BORDER_ID: u32 = MIRROR_BORDER;
+struct ResizeUbo {
+    src_width: u32,
+    src_height: u32,
+    dst_width: u32,
+    dst_height: u32,
+    scale_x: f32,
+    scale_y: f32,
 }
 
-impl<T: PixelType, B: BorderMode> super::MakeBorderKernel<T, B> for Vulkan
+impl<T: PixelType, I: InterpMode> ResizeKernel<T, I> for Vulkan
 where
-    Self: KernelOp<T, B>,
+    Self: KernelOp<T, I>,
 {
-    fn make_border(
+    fn resize(
         &mut self,
-        src: &Image<T, Self>,
-        padding: usize,
-        fill_value: T,
+        src: &mut Image<T, Self>,
+        dst_width: usize,
+        dst_height: usize,
     ) -> Image<T, Self> {
         let driver = self.driver.clone();
-        // Initialise the UBO with the image parameters.
-        let ubo_data = &[src.width as u32, src.height as u32, padding as u32];
-        let ubo = self.alloc_ubo_from_slice(ubo_data);
 
-        let dst_width = src.width + 2 * padding;
-        let dst_height = src.height + 2 * padding;
+        // Initialise the UBO with the image parameters.
+        let ubo_data = ResizeUbo {
+            src_width: src.width as u32,
+            src_height: src.height as u32,
+            dst_width: dst_width as u32,
+            dst_height: dst_height as u32,
+            scale_x: src.width as f32 / dst_width as f32,
+            scale_y: src.height as f32 / dst_height as f32,
+        };
+        let ubo = self.alloc_ubo_from_slice(&[ubo_data]);
+
         let dst_img =
             Image::try_new(src.batch_size, dst_width, dst_height, src.channels, self).unwrap();
 
@@ -91,7 +78,7 @@ where
 
                 // Set the specialization border mode constant - compile time evaluation of the
                 // if statement means that the branching will be optimised out.
-                program.bind_spec_constant(0, &[Self::BORDER_ID]);
+                program.bind_spec_constant(0, &[Self::FILTER_OP]);
                 program
                     .try_bind_ssbo::<T>("src_image", src_img_slice)
                     .unwrap();
