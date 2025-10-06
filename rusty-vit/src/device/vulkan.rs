@@ -6,13 +6,13 @@ use std::fmt::Debug;
 use std::{cell::RefCell, collections::HashMap, error::Error, ops::Deref, sync::Arc};
 
 #[derive(Clone)]
-pub struct Vulkan<'a> {
+pub struct Vulkan {
     pub(crate) driver: Arc<RefCell<Driver>>,
-    pub(crate) modules: HashMap<String, ShaderProgram<'a>>,
+    pub(crate) modules: HashMap<String, ShaderProgram>,
 }
 
-impl<'a> Vulkan<'a> {
-    pub fn new(device_type: DeviceType) -> Result<Vulkan<'a>, Box<dyn Error>> {
+impl Vulkan {
+    pub fn new(device_type: DeviceType) -> Result<Vulkan, Box<dyn Error>> {
         let driver = Arc::new(RefCell::new(Driver::new(device_type)?));
         Ok(Vulkan {
             driver,
@@ -53,9 +53,14 @@ impl<'a> Vulkan<'a> {
         self.driver.borrow().map_ubo(parts, ubo);
         ubo
     }
+
+    pub fn div_up(a: u32, b: u32) -> u32 {
+        assert!(b > 0);
+        (a + b - 1) / b
+    }
 }
 
-impl<'a> Drop for Vulkan<'a> {
+impl Drop for Vulkan {
     fn drop(&mut self) {
         for (_key, prog) in self.modules.iter_mut() {
             prog.destroy(&self.driver.borrow());
@@ -64,7 +69,7 @@ impl<'a> Drop for Vulkan<'a> {
     }
 }
 
-impl<'a, T: num::Zero + Clone + Send + Sync + Debug + 'static> DeviceStorage<T> for Vulkan<'a> {
+impl<T: num::Zero + Clone + Send + Sync + Debug + 'static> DeviceStorage<T> for Vulkan {
     type Vec = StorageBuffer<T>;
 
     fn try_alloc(&self, sz: usize) -> Result<Self::Vec, Box<dyn Error>> {
