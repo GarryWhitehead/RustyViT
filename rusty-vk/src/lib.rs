@@ -197,6 +197,26 @@ impl Driver {
         buffer.map_to_host(&cmds, self)
     }
 
+    pub fn map_ssbo_to_ssbo<T: num::Zero + Clone>(
+        &mut self,
+        src: &StorageBuffer<T>,
+        dst: &StorageBuffer<T>,
+    ) {
+        let cmds = self.compute_commands.get(&self.device.device);
+        let src_buffer = self.resource_cache.get_buffer(&src.handle).buffer;
+        let dst_buffer = self.resource_cache.get_buffer(&dst.handle).buffer;
+
+        let copy = vk::BufferCopy {
+            size: (src.elements * std::mem::size_of::<T>()) as vk::DeviceSize,
+            ..Default::default()
+        };
+        unsafe {
+            self.device
+                .device
+                .cmd_copy_buffer(cmds.buffer, src_buffer, dst_buffer, &[copy])
+        };
+    }
+
     pub fn memset_zero<T>(&mut self, ssbo: &StorageBuffer<T>) {
         let buffer = self.resource_cache.get_buffer(&ssbo.handle);
         let cmds = self.compute_commands.get(&self.device.device);
@@ -291,6 +311,26 @@ impl Driver {
 
     pub fn get_current_frame(&self) -> u64 {
         self.current_frame
+    }
+
+    pub fn write_read_barrier(&mut self) {
+        let cmds = self.compute_commands.get(&self.device.device);
+        let mem_barrier = vk::MemoryBarrier {
+            src_access_mask: vk::AccessFlags::SHADER_WRITE,
+            dst_access_mask: vk::AccessFlags::SHADER_READ,
+            ..Default::default()
+        };
+        unsafe {
+            self.device.device.cmd_pipeline_barrier(
+                cmds.buffer,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::DependencyFlags::empty(),
+                &[mem_barrier],
+                &[],
+                &[],
+            )
+        };
     }
 
     pub fn is_depth_format(format: &vk::Format) -> bool {

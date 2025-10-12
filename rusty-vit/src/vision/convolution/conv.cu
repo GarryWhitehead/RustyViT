@@ -35,10 +35,6 @@ __device__ __forceinline__ uint16_t roundNearest(float value)
     return __float2uint_rn(value);
 }
 
-__device__ __forceinline__ float lerp(float a, float b, float fract)
-{
-    return fma(fract, b, fma(-fract, a, a));
-}
 
 template <typename Type>
 __device__ void applyHorizKernel(
@@ -66,7 +62,8 @@ __device__ void applyHorizKernel(
         sData[threadIdx.y][threadIdx.x + i * HORIZ_TILE_WIDTH] = input[offset + (i * HORIZ_TILE_WIDTH)];
     }
     #pragma unroll
-    for (int i = 0; i < HORIZ_HALO_STEPS; ++i) {
+    for (int i = 0; i < HORIZ_HALO_STEPS; ++i) 
+    {
         sData[threadIdx.y][threadIdx.x + i * HORIZ_TILE_WIDTH] =
             (baseX >= -i * HORIZ_TILE_WIDTH) ? input[offset + (i * HORIZ_TILE_WIDTH)] : 0;
     }

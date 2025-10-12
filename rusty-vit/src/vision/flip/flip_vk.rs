@@ -39,7 +39,7 @@ where
                     let slice_end = slice_start + src.strides[1];
                     let img_slice = src.data.slice(slice_start..slice_end).unwrap();
 
-                    program.try_bind_ssbo::<T>("src_image", img_slice).unwrap();
+                    program.try_bind_ssbo::<T>("src_image", &img_slice).unwrap();
                     program.try_bind_ubo("image_info", &ubo).unwrap();
 
                     let work_size = program.get_work_size();

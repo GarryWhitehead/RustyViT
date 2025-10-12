@@ -36,13 +36,13 @@ impl<F: FloatType + Sum + DivAssign, T: PixelType, D: DeviceStorage<F> + Conv<T,
             })
             .sum();
         (0..kernel_dim).for_each(|i| kernel[i] /= sum);
-        println!("KERNEL: {:?}", kernel);
+
         let conv = Convolution::try_new(&kernel, &kernel, dev)?;
         Ok(Self { conv_kernel: conv })
     }
 
-    pub fn process(&mut self, src: &mut Image<T, D>) {
-        self.conv_kernel.process(src);
+    pub fn process(&mut self, src: &mut Image<T, D>, dev: &mut D) {
+        self.conv_kernel.process(src, dev);
     }
 }
 
@@ -51,15 +51,19 @@ mod tests {
     use crate::device::cpu::Cpu;
     #[cfg(feature = "cuda")]
     use crate::device::cuda::Cuda;
+    #[cfg(feature = "vulkan")]
+    use crate::device::vulkan::Vulkan;
+    use rusty_vk::public_types::DeviceType;
 
     #[test]
     fn test_blur() {
-        let mut dev = Cpu::default();
+        //let mut dev = Cpu::default();
         //let dev = Cuda::try_new(0).unwrap();
-        let data = &[3, 5, 2, 1, 0, 0, 3, 1, 6, 9, 10, 0, 5, 3, 2, 1];
+        let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+        let data: Vec<u8> = vec![3u8; 32 * 32];
         let mut blur = GaussianBlur::<f32, u8, _>::try_new(2.0, 3, &mut dev).unwrap();
-        let mut img: Image<u8, _> = Image::try_from_slice(data, 1, 16, 16, 1, &mut dev).unwrap();
-        blur.process(&mut img);
+        let mut img: Image<u8, _> = Image::try_from_slice(&data, 1, 32, 32, 1, &mut dev).unwrap();
+        blur.process(&mut img, &mut dev);
         assert_eq!(
             img.try_get_data().unwrap(),
             &[2, 2, 2, 1, 2, 3, 2, 1, 3, 4, 3, 1, 4, 4, 2, 1]
