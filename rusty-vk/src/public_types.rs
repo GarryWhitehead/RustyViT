@@ -157,7 +157,7 @@ fn to_range(range: impl RangeBounds<usize>, size: usize) -> Option<(usize, usize
     None
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct BufferView {
     pub(crate) buffer: BufferHandle,
     pub(crate) start: usize,

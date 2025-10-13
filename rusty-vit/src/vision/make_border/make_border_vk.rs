@@ -93,10 +93,10 @@ where
                 // if statement means that the branching will be optimised out.
                 program.bind_spec_constant(0, &[Self::BORDER_ID]);
                 program
-                    .try_bind_ssbo::<T>("src_image", src_img_slice)
+                    .try_bind_ssbo::<T>("src_image", &src_img_slice)
                     .unwrap();
                 program
-                    .try_bind_ssbo::<T>("dst_image", dst_img_slice)
+                    .try_bind_ssbo::<T>("dst_image", &dst_img_slice)
                     .unwrap();
                 program.try_bind_ubo("image_info", &ubo).unwrap();
 

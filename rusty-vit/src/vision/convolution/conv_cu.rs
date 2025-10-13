@@ -101,7 +101,7 @@ where
                     .arg(&x_kernel.data);
                 unsafe { builder.launch(horiz_cfg) }.unwrap();
 
-                // Vertical pass.
+                // Vertical pass. tmp -> src image
                 let mut builder = self.stream0.launch_builder(&k_vert_func);
                 let y_len = y_kernel.data.len();
                 builder

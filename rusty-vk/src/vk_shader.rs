@@ -201,7 +201,7 @@ impl<'a> ShaderProgram {
     pub fn try_bind_ssbo<T>(
         &mut self,
         ssbo_name: &str,
-        view: BufferView,
+        view: &BufferView,
     ) -> Result<(), Box<dyn Error>> {
         let binding = self.binding_map.get(ssbo_name);
         match binding {
@@ -209,7 +209,7 @@ impl<'a> ShaderProgram {
                 if info.desc_type != rspirv_reflect::DescriptorType::STORAGE_BUFFER {
                     return Err("Binding not registered as a SSBO.".into());
                 }
-                self.ssbos[info.binding as usize] = Some(view);
+                self.ssbos[info.binding as usize] = Some(*view);
             }
             None => {
                 return Err("SSBO Binding not found.".into());
