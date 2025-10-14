@@ -3,9 +3,8 @@ use crate::descriptor_cache::*;
 use crate::public_types::{BufferView, TextureView, UniformBuffer};
 use crate::resource_cache::TextureHandle;
 use ash::vk;
-use ash::vk::{DescriptorPool, ShaderModule};
 use rspirv_reflect::Reflection;
-use std::{collections::HashMap, error::Error, ops::Range};
+use std::{collections::HashMap, error::Error};
 
 pub const UBO_SHADER_BINDING: usize = 0;
 pub const SSBO_SHADER_BINDING: usize = 1;
@@ -60,7 +59,7 @@ impl<'a> ShaderProgram {
             [Default::default(); MAX_DESC_SET_COUNT];
 
         // Create the descriptor set layouts for use later by the descriptor cache.
-        for idx in 0..MAX_DESC_SET_COUNT {
+        for (idx, ds_layout) in desc_set_layouts.iter_mut().enumerate() {
             let b = layout_bindings.get(&(idx as u32));
             let mut ci = vk::DescriptorSetLayoutCreateInfo::default();
             if let Some(binding) = b {
@@ -73,13 +72,13 @@ impl<'a> ShaderProgram {
                     .device
                     .create_descriptor_set_layout(&ci, None)?
             };
-            desc_set_layouts[idx] = layout;
+            *ds_layout = layout;
         }
 
         let mut spirv_words: Vec<u32> = Vec::new();
         for i in (0..spirv_bytes.len()).step_by(4) {
             let word_slice: u32 = u32::from_le_bytes(spirv_bytes[i..i + 4].try_into().unwrap());
-            unsafe { spirv_words.push(word_slice) };
+            spirv_words.push(word_slice);
         }
         let module = Self::create_shader_module(&spirv_words, &driver.device.device)?;
         Ok(ShaderProgram {
@@ -94,6 +93,7 @@ impl<'a> ShaderProgram {
         })
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn reflect_spirv(
         data: &[u8],
     ) -> Result<
@@ -169,7 +169,7 @@ impl<'a> ShaderProgram {
         device: &ash::Device,
     ) -> Result<vk::ShaderModule, Box<dyn Error>> {
         let ci = vk::ShaderModuleCreateInfo {
-            code_size: spirv_bytecode.len() * std::mem::size_of::<u32>(),
+            code_size: std::mem::size_of_val(spirv_bytecode),
             p_code: spirv_bytecode.as_ptr(),
             ..Default::default()
         };
@@ -222,8 +222,7 @@ impl<'a> ShaderProgram {
         &mut self,
         image_name: &str,
         texture: TextureHandle,
-        size: vk::DeviceSize,
-        range: Range<usize>,
+        _size: vk::DeviceSize,
     ) -> Result<(), Box<dyn Error>> {
         let binding = self.binding_map.get(image_name);
         match binding {
@@ -231,7 +230,7 @@ impl<'a> ShaderProgram {
                 if info.desc_type != rspirv_reflect::DescriptorType::STORAGE_IMAGE {
                     return Err("Binding not registered as a image storage type.".into());
                 }
-                self.storage_images[info.binding as usize] = Some(TextureView::new(texture, size));
+                self.storage_images[info.binding as usize] = Some(TextureView::new(texture));
             }
             None => {
                 return Err("UBO Binding not found.".into());

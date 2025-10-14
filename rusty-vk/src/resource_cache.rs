@@ -1,4 +1,3 @@
-use crate::Driver;
 use crate::public_types::SamplerInfo;
 use crate::sampler_cache::SamplerCache;
 use crate::vk_buffer::{Buffer, BufferType};
@@ -13,9 +12,8 @@ pub type TextureHandle = Handle<Texture>;
 pub struct ResourceCache {
     textures: Vec<Texture>,
     buffers: Vec<Buffer>,
-
-    textures_gc: Vec<Texture>,
-    buffers_gc: Vec<Buffer>,
+    _textures_gc: Vec<Texture>,
+    _buffers_gc: Vec<Buffer>,
 }
 
 impl ResourceCache {
@@ -23,8 +21,8 @@ impl ResourceCache {
         Self {
             textures: Vec::with_capacity(100),
             buffers: Vec::with_capacity(100),
-            textures_gc: Vec::with_capacity(100),
-            buffers_gc: Vec::with_capacity(100),
+            _textures_gc: Vec::with_capacity(100),
+            _buffers_gc: Vec::with_capacity(100),
         }
     }
 
@@ -37,12 +35,6 @@ impl ResourceCache {
         device: &ash::Device,
         sampler_cache: &mut SamplerCache,
     ) -> TextureHandle {
-        // If the mip level is U32_MAX then compute the number of levels based on the image size.
-        let levels = match info.mip_levels {
-            u32::MAX => 12,
-            _ => info.mip_levels,
-        };
-
         let texture = Texture::new(
             info,
             usage_flags,
@@ -83,6 +75,7 @@ impl ResourceCache {
         self.buffers[handle.get_id()].clone()
     }
 
+    #[allow(dead_code)]
     pub fn destroy_texture2d(&mut self, handle: TextureHandle) {
         assert!(handle.is_valid());
         let mut texture = self.textures.remove(handle.get_id());
@@ -90,26 +83,28 @@ impl ResourceCache {
         // that the texture has finished on whatever command buffer it was related
         // to and can be safely terminated.
         texture.frames_until_gc = MAX_CMD_BUFFER_IN_FLIGHT_COUNT as u32;
-        self.textures_gc.push(texture);
+        self._textures_gc.push(texture);
     }
 
+    #[allow(dead_code)]
     pub fn destroy_buffer(&mut self, handle: BufferHandle) {
         assert!(handle.is_valid());
         let mut buffer = self.buffers.remove(handle.get_id());
-        buffer.frames_until_gc = MAX_CMD_BUFFER_IN_FLIGHT_COUNT as u32;
-        self.buffers_gc.push(buffer);
+        buffer._frames_until_gc = MAX_CMD_BUFFER_IN_FLIGHT_COUNT as u32;
+        self._buffers_gc.push(buffer);
     }
 
+    #[allow(dead_code)]
     pub fn gc(&mut self, vma_alloc: &vk_mem::Allocator, device: &ash::Device) {
-        self.buffers_gc.retain_mut(|buffer| {
-            buffer.frames_until_gc -= 1;
-            if buffer.frames_until_gc == 0 {
+        self._buffers_gc.retain_mut(|buffer| {
+            buffer._frames_until_gc -= 1;
+            if buffer._frames_until_gc == 0 {
                 buffer.destroy(vma_alloc);
                 return false;
             }
             true
         });
-        self.textures_gc.retain_mut(|texture| {
+        self._textures_gc.retain_mut(|texture| {
             texture.frames_until_gc -= 1;
             if texture.frames_until_gc == 0 {
                 texture.destroy(vma_alloc, device);

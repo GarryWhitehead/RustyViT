@@ -1,8 +1,10 @@
+#[cfg(feature = "vulkan")]
 use shaderc::ShaderKind;
-use std::fs;
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
+#[cfg(feature = "vulkan")]
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 fn main() {
     #[cfg(feature = "cuda")]
@@ -97,12 +99,13 @@ fn build_cuda() {
     }
 }
 
+#[cfg(feature = "vulkan")]
 fn to_rust_type(ty: &str) -> &str {
     match ty {
         "uint8_t" => "u8",
         "uint16_t" => "u16",
         "float" => "f32",
-        _ => panic!("Unknown type {}", ty),
+        _ => panic!("Unknown type {ty}"),
     }
 }
 
@@ -118,7 +121,7 @@ fn build_vulkan() {
         .iter()
         .for_each(|path| println!("cargo:rerun-if-changed={}", path.display()));
 
-    let mut compiler = shaderc::Compiler::new().unwrap();
+    let compiler = shaderc::Compiler::new().unwrap();
 
     glsl_paths.iter().for_each(|path| {
         ["uint8_t", "uint16_t", "float"].map(|ty| {

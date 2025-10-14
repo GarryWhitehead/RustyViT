@@ -2,7 +2,7 @@ use crate::Driver;
 use crate::SamplerInfo;
 use crate::sampler_cache::SamplerCache;
 use ash::vk;
-use vk_mem::{Alloc, Allocator};
+use vk_mem::Alloc;
 
 const MAX_MIP_LEVEL_COUNT: usize = 12;
 

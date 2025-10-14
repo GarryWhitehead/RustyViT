@@ -7,10 +7,10 @@ where
 {
     assert_eq!(input.len(), width * height);
     let mut dst = vec![TYPE::zero(); width * height];
-    for n in 0..width * height {
+    for (n, d) in dst.iter_mut().enumerate() {
         let i = n / height;
         let j = n % height;
-        dst[n] = input[width * j + i];
+        *d = input[width * j + i];
     }
     dst
 }
@@ -60,7 +60,7 @@ pub fn add_block<TYPE, const BLOCK_SIZE: usize>(
 {
     assert_eq!(m1.len(), width * height);
     assert_eq!(m2.len(), width * height);
-    let dst = vec![TYPE::zero(); width * height];
+    //let dst = vec![TYPE::zero(); width * height];
     for y in (0..height).step_by(BLOCK_SIZE) {
         for x in (0..width).step_by(BLOCK_SIZE) {
             for yy in y..y + BLOCK_SIZE {

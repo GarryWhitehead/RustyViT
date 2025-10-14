@@ -22,7 +22,7 @@ pub trait CropKernel<T>: DeviceStorage<T> {
         Self: Sized;
 }
 
-struct RandomCrop {
+pub struct RandomCrop {
     crop_width: usize,
     crop_height: usize,
     x: usize,
@@ -64,23 +64,17 @@ impl RandomCrop {
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::device::cpu::Cpu;
-    #[cfg(feature = "cuda")]
-    use crate::device::cuda::Cuda;
-    #[cfg(feature = "vulkan")]
-    use crate::device::vulkan::Vulkan;
-    //use rusty_vk::public_types::DeviceType;
-
     #[test]
     fn test_crop() {
         let src = &[1, 2, 3, 4, 5, 6, 7, 8, 9];
         //let dev = Cuda::try_new(0).unwrap();
-        let mut dev = Cpu::default();
+        let mut dev = crate::device::cpu::Cpu::default();
         //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
-        let cropper = RandomCrop::new(3, 3, 3, 3);
-        let mut img: Image<u8, _> = Image::try_from_slice(src, 1, 3, 3, 1, &mut dev).unwrap();
+        let cropper = crate::vision::crop::RandomCrop::new(3, 3, 3, 3);
+        let mut img: crate::image::Image<u8, _> =
+            crate::image::Image::try_from_slice(src, 1, 3, 3, 1, &mut dev).unwrap();
         let dst = cropper.crop(&mut img, &mut dev);
         assert_eq!(dst.try_get_data().unwrap(), src);
     }
@@ -88,7 +82,7 @@ mod tests {
     #[test]
     fn test_crop_batched() {
         //let dev = Cuda::try_new(0).unwrap();
-        let mut dev = Cpu::default();
+        let mut dev = crate::device::cpu::Cpu::default();
         //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
         let (b, c, w, h) = (20, 3, 3, 3);
         let template = &[1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -96,8 +90,9 @@ mod tests {
         src.chunks_mut(w * h).for_each(|slice| {
             slice.copy_from_slice(template);
         });
-        let cropper = RandomCrop::new(3, 3, 3, 3);
-        let mut img: Image<u8, _> = Image::try_from_slice(&src, b, w, h, c, &mut dev).unwrap();
+        let cropper = crate::vision::crop::RandomCrop::new(3, 3, 3, 3);
+        let mut img: crate::image::Image<u8, _> =
+            crate::image::Image::try_from_slice(&src, b, w, h, c, &mut dev).unwrap();
         let crop_img = cropper.crop(&mut img, &mut dev);
         let crop_img = crop_img.try_get_data().unwrap();
         crop_img.chunks(w * h).for_each(|slice| {

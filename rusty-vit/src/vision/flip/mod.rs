@@ -46,23 +46,16 @@ pub fn flip_vertical(image: &[u8], image_size: usize, stride: usize, out: &mut [
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::device::cpu::Cpu;
-    #[cfg(feature = "cuda")]
-    use crate::device::cuda::Cuda;
-    #[cfg(feature = "vulkan")]
-    use crate::device::vulkan::Vulkan;
-    //use rusty_vk::public_types::DeviceType;
-
     #[test]
     fn test_flip_horizontal() {
         let src: Vec<u8> = vec![1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4];
         //let dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
         //let dev = Cuda::try_new(0).unwrap();
-        let mut dev = Cpu::default();
-        let flipper = RandomFlipHorizontal::new(2.0);
-        let mut img = Image::try_from_slice(&src, 1, 4, 4, 1, &dev).unwrap();
+        let mut dev = crate::device::cpu::Cpu::default();
+        let flipper = crate::vision::flip::RandomFlipHorizontal::new(2.0);
+        let mut img = crate::image::Image::try_from_slice(&src, 1, 4, 4, 1, &dev).unwrap();
         flipper.flip(&mut img, &mut dev);
         assert_eq!(
             img.try_get_data().unwrap(),
@@ -79,9 +72,10 @@ mod tests {
             .for_each(|chunk| chunk.copy_from_slice(&template));
         //let dev = Cuda::try_new(0).unwrap();
         //let dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
-        let mut dev = Cpu::default();
-        let flipper = RandomFlipHorizontal::new(2.0);
-        let mut img: Image<u8, _> = Image::try_from_slice(&src, b, w, h, c, &dev).unwrap();
+        let mut dev = crate::device::cpu::Cpu::default();
+        let flipper = crate::vision::flip::RandomFlipHorizontal::new(2.0);
+        let mut img: crate::image::Image<u8, _> =
+            crate::image::Image::try_from_slice(&src, b, w, h, c, &dev).unwrap();
         flipper.flip(&mut img, &mut dev);
         let dst = img.try_get_data().unwrap();
         dst.chunks(w * h).for_each(|chunk| {

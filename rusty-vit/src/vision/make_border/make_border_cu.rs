@@ -44,12 +44,7 @@ impl<T: PixelType, B: BorderMode> super::MakeBorderKernel<T, B> for Cuda
 where
     Self: KernelOp<T, B>,
 {
-    fn make_border(
-        &mut self,
-        src: &Image<T, Self>,
-        padding: usize,
-        fill_value: T,
-    ) -> Image<T, Self> {
+    fn make_border(&mut self, src: &Image<T, Self>, padding: usize) -> Image<T, Self> {
         let k_func = self.register_kernel(MAKE_BORDER_PTX, Self::KERNEL_NAME);
 
         let block_dim = (32, 8, 1);

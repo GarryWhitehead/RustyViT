@@ -1,17 +1,14 @@
 pub mod cpu_image;
 #[cfg(feature = "cuda")]
 pub mod cu_image;
-
-use crate::device::DeviceStorage;
-use crate::type_traits::{BType, SafeZeros};
 #[cfg(feature = "cuda")]
 use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
+
+use crate::device::DeviceStorage;
+use crate::type_traits::BType;
 use num::Zero;
 use num::traits::{FromBytes, ToBytes};
-use std::cell::RefCell;
 use std::error::Error;
-use std::ops::Add;
-use std::sync::Arc;
 
 pub trait ToFloat: Default + Copy + Clone + 'static {
     fn to_float(self) -> f32;
@@ -127,7 +124,7 @@ impl<T: PixelType, S: DeviceStorage<T>> Image<T, S> {
 
     pub fn try_get_data(&self) -> Result<Vec<T>, Box<dyn Error>> {
         self.device.try_sync()?;
-        Ok(self.device.try_from_device_vec(&self.data)?)
+        self.device.try_from_device_vec(&self.data)
     }
 
     fn compute_strides(

@@ -1,14 +1,13 @@
-use crate::device::DeviceStorage;
 use crate::device::cpu::Cpu;
 use crate::image::{Image, PixelType};
 
 type ImageIndex = [usize; 4];
 
 fn to_image_idx(index: ImageIndex, width: usize, height: usize, channels: usize) -> usize {
-    let (B, C, X, Y) = (index[0], index[1], index[2], index[3]);
+    let (b, c, x, y) = (index[0], index[1], index[2], index[3]);
     let channel_size = width * height;
     let image_size = channels * channel_size;
-    B * image_size + C * image_size + Y * width + X
+    b * image_size + c * image_size + y * width + x
 }
 
 impl<P: PixelType> std::ops::Index<ImageIndex> for Image<P, Cpu> {

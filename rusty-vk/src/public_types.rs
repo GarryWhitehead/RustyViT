@@ -172,11 +172,10 @@ impl BufferView {
 #[derive(Debug, Default, Clone)]
 pub struct TextureView {
     pub(crate) texture: TextureHandle,
-    pub(crate) size: vk::DeviceSize,
 }
 impl TextureView {
-    pub fn new(texture: TextureHandle, size: vk::DeviceSize) -> Self {
-        Self { texture, size }
+    pub fn new(texture: TextureHandle) -> Self {
+        Self { texture }
     }
 }
 
@@ -223,20 +222,20 @@ impl<T> StorageBuffer<T> {
 
 #[derive(Copy, Clone)]
 pub struct VkTexture<T> {
-    pub(crate) handle: TextureHandle,
+    pub(crate) _handle: TextureHandle,
     pub(crate) phantom: PhantomData<T>,
 }
 
 impl<T> VkTexture<T> {
     pub fn new(handle: TextureHandle) -> Self {
         Self {
-            handle,
+            _handle: handle,
             phantom: PhantomData,
         }
     }
 }
 
-#[derive(Copy, Clone, Default, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct ComputeWork {
     pub(crate) x: u32,
     pub(crate) y: u32,
@@ -244,11 +243,13 @@ pub struct ComputeWork {
 }
 
 impl ComputeWork {
-    pub fn default() -> Self {
-        Self { x: 1, y: 1, z: 1 }
-    }
-
     pub fn new(x: u32, y: u32, z: u32) -> Self {
         Self { x, y, z }
+    }
+}
+
+impl Default for ComputeWork {
+    fn default() -> Self {
+        Self { x: 1, y: 1, z: 1 }
     }
 }

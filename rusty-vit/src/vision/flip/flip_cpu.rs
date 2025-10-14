@@ -30,9 +30,7 @@ impl Cpu {
                 for col in 0..width {
                     let base_offset = c * width * height;
                     let bottom_offset = base_offset + (height - row - 1) * width;
-                    let tmp = src[bottom_offset + col];
-                    src[bottom_offset + col] = src[base_offset + row * width + col];
-                    src[base_offset + row * width + col] = tmp;
+                    src.swap(bottom_offset + col, base_offset + row * width + col);
                 }
             }
         }

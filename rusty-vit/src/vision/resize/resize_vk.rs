@@ -24,6 +24,7 @@ impl KernelOp<f32, Bilinear> for Vulkan {
     const FILTER_OP: u32 = FILTER_OP_BILINEAR;
 }
 
+#[allow(dead_code)]
 struct ResizeUbo {
     src_width: u32,
     src_height: u32,

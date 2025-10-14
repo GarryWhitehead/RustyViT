@@ -1,4 +1,3 @@
-use crate::device::DeviceStorage;
 use crate::device::vulkan::Vulkan;
 use crate::image::{Image, PixelType};
 use rusty_vk::public_types::ComputeWork;

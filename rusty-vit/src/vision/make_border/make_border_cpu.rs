@@ -1,29 +1,28 @@
-use crate::device::DeviceStorage;
 use crate::device::cpu::Cpu;
 use crate::image::{Image, PixelType};
 use crate::vision::make_border::{BorderMode, ClampToEdge, Constant, Mirror};
 use rayon::prelude::*;
 
 pub(crate) trait InterpOp<I: BorderMode> {
-    fn compute_idx(pos: usize, pad_size: usize, image_size: usize) -> usize;
+    fn compute_idx(pos: i32, pad_size: i32, image_size: usize) -> i32;
 }
 
 impl InterpOp<Constant> for Cpu {
-    fn compute_idx(_pos: usize, _pad_size: usize, _image_size: usize) -> usize {
-        usize::MAX
+    fn compute_idx(_pos: i32, _pad_size: i32, _image_size: usize) -> i32 {
+        i32::MAX
     }
 }
 impl InterpOp<ClampToEdge> for Cpu {
-    fn compute_idx(pos: usize, _pad_size: usize, image_size: usize) -> usize {
-        if pos < 0 { 0 } else { image_size - 1 }
+    fn compute_idx(pos: i32, _pad_size: i32, image_size: usize) -> i32 {
+        if pos < 0 { 0 } else { (image_size - 1) as i32 }
     }
 }
 impl InterpOp<Mirror> for Cpu {
-    fn compute_idx(pos: usize, pad_size: usize, image_size: usize) -> usize {
+    fn compute_idx(pos: i32, pad_size: i32, image_size: usize) -> i32 {
         if pos < pad_size {
             pad_size - pos
         } else {
-            image_size - (pos - image_size) - 2
+            image_size as i32 - (pos - image_size as i32) - 2
         }
     }
 }
@@ -32,12 +31,7 @@ impl<T: PixelType, I: BorderMode> super::MakeBorderKernel<T, I> for Cpu
 where
     Self: InterpOp<I>,
 {
-    fn make_border(
-        &mut self,
-        src: &Image<T, Self>,
-        padding: usize,
-        fill_value: T,
-    ) -> Image<T, Self> {
+    fn make_border(&mut self, src: &Image<T, Self>, padding: usize) -> Image<T, Self> {
         // New batched image size with padding added.
         let new_image_width = src.width + 2 * padding;
         let new_image_height = src.height + 2 * padding;
@@ -68,6 +62,7 @@ where
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Cpu {
     fn make_border_kernel<T: PixelType, F>(
         &self,
@@ -79,7 +74,7 @@ impl Cpu {
         op: F,
         out: &mut [T],
     ) where
-        F: Fn(usize, usize, usize) -> usize,
+        F: Fn(i32, i32, usize) -> i32,
     {
         let new_width = width + padding * 2;
         let new_height = height + padding * 2;
@@ -101,7 +96,7 @@ impl Cpu {
             }
 
             // If the border mode is constant, we are done here.
-            if op(0, 0, 0) == usize::MAX {
+            if op(0, 0, 0) == i32::MAX {
                 continue;
             }
 
@@ -109,15 +104,15 @@ impl Cpu {
             for row in 0..height {
                 // Left edge.
                 for i in 0..padding {
-                    let interp_idx = op(i, padding, width);
+                    let interp_idx = op(i as i32, padding as i32, width);
                     out_channel_slice[i + new_width * padding + row] =
-                        src_channel_slice[interp_idx + width * row]
+                        src_channel_slice[interp_idx as usize + width * row]
                 }
                 // Right edge.
                 for i in 0..padding {
-                    let interp_idx = op(i + width, padding, width);
+                    let interp_idx = op((i + width) as i32, padding as i32, width);
                     out_channel_slice[i + width * new_width * padding + row] =
-                        src_channel_slice[interp_idx + width * row]
+                        src_channel_slice[interp_idx as usize + width * row]
                 }
             }
 
@@ -126,18 +121,20 @@ impl Cpu {
             {
                 let (out, input) = out_channel_slice.split_at_mut(new_width * padding);
                 for row in 0..padding {
-                    let idx = op(row, padding, height);
-                    out[row * new_width..row * new_width + new_width]
-                        .copy_from_slice(&input[idx * new_width..idx * new_width + new_width]);
+                    let idx = op(row as i32, padding as i32, height);
+                    out[row * new_width..row * new_width + new_width].copy_from_slice(
+                        &input[idx as usize * new_width..idx as usize * new_width + new_width],
+                    );
                 }
             }
             {
                 // Bottom edge.
                 let (input, out) = out_channel_slice.split_at_mut(padding + height * new_width);
                 for row in 0..padding {
-                    let idx = op(row + height, padding, height);
+                    let idx = op((row + height) as i32, padding as i32, height);
                     out[row * new_width..row * new_width + new_width].copy_from_slice(
-                        &input[idx + padding * new_width..idx + padding * new_width + new_width],
+                        &input[idx as usize + padding * new_width
+                            ..idx as usize + padding * new_width + new_width],
                     );
                 }
             }

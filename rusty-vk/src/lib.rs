@@ -1,7 +1,7 @@
 use crate::descriptor_cache::{DescImage, DescriptorCache};
 use crate::pipeline_cache::PipelineCache;
 use crate::public_types::*;
-use crate::resource_cache::{BufferHandle, ResourceCache, TextureHandle};
+use crate::resource_cache::ResourceCache;
 use crate::sampler_cache::SamplerCache;
 use crate::staging_pool::StagingPool;
 use crate::vk_buffer::BufferType;
@@ -11,13 +11,9 @@ use crate::vk_instance::ContextInstance;
 use crate::vk_shader::ShaderProgram;
 use crate::vk_texture::{TextureInfo, TextureType};
 use ash::vk;
-use ash::vk::Handle;
 use env_logger::Env;
-use renderdoc::{CaptureOption, DevicePointer, RenderDoc, V130};
-use std::ffi::c_void;
-use std::fmt::Debug;
-use std::ptr::null;
-use std::{error::Error, mem::ManuallyDrop};
+use renderdoc::{CaptureOption, RenderDoc, V130};
+use std::{error::Error, mem::ManuallyDrop, ptr::null};
 
 mod descriptor_cache;
 pub mod public_types;
@@ -56,14 +52,14 @@ impl Driver {
             .write_style_or("MY_LOG_STYLE", "always");
         env_logger::init_from_env(env);
 
-        let mut renderd: Result<RenderDoc<V130>, _> = RenderDoc::new();
-        let mut rd = match renderd {
+        let renderd: Result<RenderDoc<V130>, _> = RenderDoc::new();
+        let rd = match renderd {
             Ok(mut r) => {
                 r.set_capture_option_u32(CaptureOption::DebugOutputMute, 0);
                 r.set_capture_option_u32(CaptureOption::ApiValidation, 1);
                 Some(r)
             }
-            Err(e) => None,
+            Err(_) => None,
         };
 
         // Create the main vulkan instance for a given set of display extensions.
@@ -166,10 +162,7 @@ impl Driver {
         }
         let mut buffer = self.resource_cache.get_buffer(&ssbo.handle);
         let parts = unsafe {
-            std::slice::from_raw_parts(
-                data.as_ptr() as *const u8,
-                data.len() * std::mem::size_of::<T>(),
-            )
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, std::mem::size_of_val(data))
         };
 
         buffer.map(
@@ -288,7 +281,7 @@ impl Driver {
         self.pline_cache.bind_shader_module(program.module);
         self.pline_cache.bind_layout(layout.layout);
         self.pline_cache
-            .bind_pipeline(cmds.buffer, &program, &self.device.device);
+            .bind_pipeline(cmds.buffer, program, &self.device.device);
 
         unsafe {
             self.device

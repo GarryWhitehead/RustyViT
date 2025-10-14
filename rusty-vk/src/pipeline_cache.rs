@@ -6,7 +6,7 @@ use std::ffi::c_void;
 use std::{collections::HashMap, hash::Hash};
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Default)]
-struct PipelineLayoutKey {
+pub(crate) struct PipelineLayoutKey {
     desc_layouts: [vk::DescriptorSetLayout; MAX_DESC_SET_COUNT],
 }
 
@@ -19,20 +19,20 @@ pub(crate) struct PLayout {
 impl PLayout {
     fn new(layout: vk::PipelineLayout, current_frame: u64) -> Self {
         Self {
-            layout: layout,
+            layout,
             frame_last_used: current_frame,
         }
     }
 }
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Default)]
-struct PipelineKey {
+pub(crate) struct PipelineKey {
     pub(crate) module: vk::ShaderModule,
     pub(crate) layout: vk::PipelineLayout,
 }
 
 #[derive(Copy, Clone, Debug)]
-struct PLine {
+pub(crate) struct PLine {
     pipeline: vk::Pipeline,
     cache: vk::PipelineCache,
 }
@@ -75,7 +75,7 @@ impl PipelineCache {
                 };
                 let l = unsafe { device.create_pipeline_layout(&ci, None).unwrap() };
                 let out = PLayout::new(l, current_frame);
-                self.playouts.insert(self.layout_requires, out.clone());
+                self.playouts.insert(self.layout_requires, out);
                 out
             }
         }
@@ -98,7 +98,7 @@ impl PipelineCache {
                     &program.spec_consts,
                 );
                 let pline = PLine::new(pipeline, cache);
-                self.pipelines.insert(self.pipeline_requires, pline.clone());
+                self.pipelines.insert(self.pipeline_requires, pline);
                 pline
             }
         };

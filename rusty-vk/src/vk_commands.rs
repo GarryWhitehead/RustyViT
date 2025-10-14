@@ -117,10 +117,8 @@ impl Commands {
 
     pub fn free_cmd_buffers(&mut self, device: &ash::Device) {
         let mut fences: Vec<vk::Fence> = Vec::with_capacity(MAX_CMD_BUFFER_IN_FLIGHT_COUNT);
-        for cmd_buffer in &self.cmd_buffers {
-            if let Some(cmds) = cmd_buffer {
-                fences.push(cmds.fence);
-            }
+        for cmd_buffer in self.cmd_buffers.iter().flatten() {
+            fences.push(cmd_buffer.fence);
         }
         // Wait for all cmd buffers that are currently active.
         if !fences.is_empty() {
@@ -184,6 +182,7 @@ impl Commands {
         self.external_signals.clear();
     }
 
+    #[allow(dead_code)]
     pub fn add_external_wait_signal(&mut self, signal: vk::Semaphore) {
         self.external_signals.push(signal);
     }

@@ -1,6 +1,5 @@
 use crate::vk_instance::ContextInstance;
-use ash::khr::{surface, swapchain};
-use ash::{Entry, Instance, vk};
+use ash::{Instance, vk};
 use log::info;
 use std::error::Error;
 
@@ -18,19 +17,17 @@ impl ContextDevice {
         device_type: vk::PhysicalDeviceType,
     ) -> Result<Self, Box<dyn Error>> {
         let (physical_device, queue_family_idx) =
-            find_physical_device(&c_instance.instance, &c_instance.entry, device_type)?;
+            find_physical_device(&c_instance.instance, device_type)?;
 
         let compute_queue_idx = queue_family_idx;
 
         let queue_priority = [1.0];
-        let mut queue_infos: Vec<vk::DeviceQueueCreateInfo> = Vec::new();
-        // A graphics queue is mandatory - presentation and compute queues that differ
-        // from the graphics queue depends on the device.
-        queue_infos.push(
+        // A compute queue is mandatory - obviously!!
+        let queue_infos: Vec<vk::DeviceQueueCreateInfo> = vec![
             vk::DeviceQueueCreateInfo::default()
                 .queue_family_index(compute_queue_idx)
                 .queue_priorities(&queue_priority),
-        );
+        ];
 
         let phys_features = unsafe {
             c_instance
@@ -95,7 +92,6 @@ impl ContextDevice {
 
 fn find_physical_device(
     instance: &Instance,
-    entry: &Entry,
     device_type: vk::PhysicalDeviceType,
 ) -> Result<(vk::PhysicalDevice, u32), Box<dyn Error>> {
     let phys_devices = unsafe {
@@ -105,7 +101,6 @@ fn find_physical_device(
     };
 
     // Find an appropriate physical device.
-    let surface_loader = surface::Instance::new(entry, instance);
     let (phys_device, queue_family_idx) = phys_devices
         .iter()
         .find_map(|phys_device| unsafe {
@@ -119,7 +114,7 @@ fn find_physical_device(
                     if info.queue_flags.contains(vk::QueueFlags::COMPUTE)
                         && gpu_props.device_type == device_type
                     {
-                        info!("{:?}", gpu_props);
+                        info!("{gpu_props:?}");
                         Some((*phys_device, idx))
                     } else {
                         None

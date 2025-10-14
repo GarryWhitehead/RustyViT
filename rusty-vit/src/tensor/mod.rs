@@ -2,11 +2,9 @@ use crate::device::DeviceStorage;
 use crate::type_traits::FloatType;
 #[cfg(feature = "cuda")]
 use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
-use num::traits::{FromBytes, ToBytes};
-use num::{Float, Zero};
 use std::error::Error;
 
-mod convolution;
+pub mod convolution;
 pub mod layer_norm;
 pub mod matmul;
 pub mod matrix_funcs;
@@ -17,6 +15,7 @@ pub trait SafeZeros: ValidAsZeroBits + DeviceRepr {}
 #[cfg(not(feature = "cuda"))]
 pub trait SafeZeros {}
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct Tensor<T: FloatType, S: DeviceStorage<T>> {
     pub(crate) data: S::Vec,

@@ -56,12 +56,7 @@ impl<T: PixelType, B: BorderMode> super::MakeBorderKernel<T, B> for Vulkan
 where
     Self: KernelOp<T, B>,
 {
-    fn make_border(
-        &mut self,
-        src: &Image<T, Self>,
-        padding: usize,
-        fill_value: T,
-    ) -> Image<T, Self> {
+    fn make_border(&mut self, src: &Image<T, Self>, padding: usize) -> Image<T, Self> {
         let driver = self.driver.clone();
         // Initialise the UBO with the image parameters.
         let ubo_data = &[src.width as u32, src.height as u32, padding as u32];
