@@ -7,10 +7,10 @@ where
 {
     assert_eq!(input.len(), width * height);
     let mut dst = vec![TYPE::zero(); width * height];
-    for n in 0..width * height {
+    for (n, d) in dst.iter_mut().enumerate() {
         let i = n / height;
         let j = n % height;
-        dst[n] = input[width * j + i];
+        *d = input[width * j + i];
     }
     dst
 }

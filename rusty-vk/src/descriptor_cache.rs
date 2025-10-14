@@ -112,8 +112,10 @@ impl DescriptorCache {
     }
 
     fn create_desc_set(&self, program: &ShaderProgram, device: &ash::Device) -> DescSetInstance {
-        let mut instance = DescSetInstance::default();
-        instance.layouts = program.desc_set_layouts;
+        let mut instance = DescSetInstance {
+            layouts: program.desc_set_layouts,
+            ..Default::default()
+        };
 
         let mut ai = vk::DescriptorSetAllocateInfo {
             descriptor_pool: self.desc_pool,
@@ -130,57 +132,62 @@ impl DescriptorCache {
         let mut ssbo_infos = [vk::DescriptorBufferInfo::default(); MAX_SSBO_COUNT];
         let mut storage_image_infos = [vk::DescriptorImageInfo::default(); MAX_STORAGE_IMAGE_COUNT];
 
-        for i in 0..MAX_UBO_COUNT {
+        for (i, info) in buffer_infos.iter_mut().enumerate() {
             if !self.desc_requires.ubos[i].is_null() {
-                buffer_infos[i].buffer = self.desc_requires.ubos[i];
-                buffer_infos[i].offset = self.desc_requires.ubo_offsets[i];
-                buffer_infos[i].range = self.desc_requires.ubo_sizes[i];
+                info.buffer = self.desc_requires.ubos[i];
+                info.offset = self.desc_requires.ubo_offsets[i];
+                info.range = self.desc_requires.ubo_sizes[i];
 
-                let mut write = vk::WriteDescriptorSet::default();
-                write.descriptor_count = 1;
-                write.descriptor_type = vk::DescriptorType::UNIFORM_BUFFER;
-                write.p_buffer_info = &buffer_infos[i];
-                write.dst_binding = i as u32;
-                write.dst_set = instance.sets[UBO_SHADER_BINDING];
+                let write = vk::WriteDescriptorSet {
+                    descriptor_count: 1,
+                    descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
+                    p_buffer_info: &info.clone(),
+                    dst_binding: i as u32,
+                    dst_set: instance.sets[UBO_SHADER_BINDING],
+                    ..Default::default()
+                };
                 write_desc_sets.push(write);
                 debug!(
                     "UBO (bind = {}) descriptor write: range = {}; offset = {}",
-                    i, buffer_infos[i].range, buffer_infos[i].offset
+                    i, info.range, info.offset
                 );
             }
         }
-        for i in 0..MAX_SSBO_COUNT {
+        for (i, info) in ssbo_infos.iter_mut().enumerate() {
             if !self.desc_requires.ssbos[i].is_null() {
-                ssbo_infos[i].buffer = self.desc_requires.ssbos[i];
-                ssbo_infos[i].offset = self.desc_requires.ssbo_offsets[i];
-                ssbo_infos[i].range = self.desc_requires.ssbo_sizes[i];
+                info.buffer = self.desc_requires.ssbos[i];
+                info.offset = self.desc_requires.ssbo_offsets[i];
+                info.range = self.desc_requires.ssbo_sizes[i];
 
-                let mut write = vk::WriteDescriptorSet::default();
-                write.descriptor_count = 1;
-                write.descriptor_type = vk::DescriptorType::STORAGE_BUFFER;
-                write.p_buffer_info = &ssbo_infos[i];
-                write.dst_binding = i as u32;
-                write.dst_set = instance.sets[SSBO_SHADER_BINDING];
+                let write = vk::WriteDescriptorSet {
+                    descriptor_count: 1,
+                    descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                    p_buffer_info: &info.clone(),
+                    dst_binding: i as u32,
+                    dst_set: instance.sets[SSBO_SHADER_BINDING],
+                    ..Default::default()
+                };
                 write_desc_sets.push(write);
                 debug!(
                     "SSBO (bind = {}) descriptor write: range = {}; offset = {}",
-                    i, ssbo_infos[i].range, ssbo_infos[i].offset
+                    i, info.range, info.offset
                 );
             }
         }
-        for i in 0..MAX_STORAGE_IMAGE_COUNT {
+        for (i, info) in storage_image_infos.iter_mut().enumerate() {
             if !self.desc_requires.storage_images[i].image_view.is_null() {
-                storage_image_infos[i].image_layout =
-                    self.desc_requires.storage_images[i].image_layout;
-                storage_image_infos[i].image_view = self.desc_requires.storage_images[i].image_view;
-                storage_image_infos[i].sampler = self.desc_requires.storage_images[i].sampler;
+                info.image_layout = self.desc_requires.storage_images[i].image_layout;
+                info.image_view = self.desc_requires.storage_images[i].image_view;
+                info.sampler = self.desc_requires.storage_images[i].sampler;
 
-                let mut write = vk::WriteDescriptorSet::default();
-                write.descriptor_count = 1;
-                write.descriptor_type = vk::DescriptorType::STORAGE_IMAGE;
-                write.p_image_info = &storage_image_infos[i];
-                write.dst_binding = i as u32;
-                write.dst_set = instance.sets[IMAGE_STORAGE_SHADER_BINDING];
+                let write = vk::WriteDescriptorSet {
+                    descriptor_count: 1,
+                    descriptor_type: vk::DescriptorType::STORAGE_IMAGE,
+                    p_image_info: &info.clone(),
+                    dst_binding: i as u32,
+                    dst_set: instance.sets[IMAGE_STORAGE_SHADER_BINDING],
+                    ..Default::default()
+                };
                 write_desc_sets.push(write);
             }
         }

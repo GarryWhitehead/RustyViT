@@ -77,7 +77,7 @@ impl Cpu {
                 // Normalise the co-efficients.
                 (0..xmax).for_each(|i| filter_slice[i as usize] /= accum);
             }
-            bounds_buffer[xx as usize * 2 + 0] = xmin;
+            bounds_buffer[xx as usize * 2] = xmin;
             bounds_buffer[xx as usize * 2 + 1] = xmax;
         }
         (filter_size, bounds_buffer.to_vec(), coeff_buffer.to_vec())
@@ -193,6 +193,7 @@ impl Cpu {
         dst
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn resample<T: PixelType>(
         src: &[T],
         src_stride: usize,
@@ -220,6 +221,7 @@ impl Cpu {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn vertical_pass<T: PixelType>(
         &self,
         src: &[T],
@@ -236,6 +238,7 @@ impl Cpu {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn horizontal_pass<T: PixelType>(
         &self,
         src: &[T],

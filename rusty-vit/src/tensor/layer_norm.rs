@@ -16,15 +16,15 @@ fn layernorm(
 
             // Calculate the mean.
             let mut mean = 0.0;
-            for i in 0..c {
-                mean += input[i];
+            for i in input.iter().take(c) {
+                mean += i;
             }
             mean /= c as f32;
 
             // Calculate the variance.
             let mut var = 0.0;
-            for i in 0..c {
-                let shift = input[i] - mean;
+            for i in input.iter().take(c) {
+                let shift = i - mean;
                 var += shift * shift;
             }
             var /= c as f32;

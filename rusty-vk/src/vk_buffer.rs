@@ -69,7 +69,7 @@ impl Buffer {
         unsafe { mapped.copy_from(data, data_size as usize) };
         unsafe { allocator.unmap_memory(&mut self.memory) };
         allocator
-            .flush_allocation(&mut self.memory, offset, data_size)
+            .flush_allocation(&self.memory, offset, data_size)
             .unwrap();
     }
 
@@ -111,7 +111,7 @@ impl Buffer {
             driver.vma_allocator.unmap_memory(&mut self.memory);
             driver
                 .vma_allocator
-                .flush_allocation(&mut self.memory, 0, self.size)
+                .flush_allocation(&self.memory, 0, self.size)
                 .unwrap()
         };
         host_vec

@@ -162,10 +162,7 @@ impl Driver {
         }
         let mut buffer = self.resource_cache.get_buffer(&ssbo.handle);
         let parts = unsafe {
-            std::slice::from_raw_parts(
-                data.as_ptr() as *const u8,
-                data.len() * std::mem::size_of::<T>(),
-            )
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, std::mem::size_of_val(data))
         };
 
         buffer.map(
@@ -284,7 +281,7 @@ impl Driver {
         self.pline_cache.bind_shader_module(program.module);
         self.pline_cache.bind_layout(layout.layout);
         self.pline_cache
-            .bind_pipeline(cmds.buffer, &program, &self.device.device);
+            .bind_pipeline(cmds.buffer, program, &self.device.device);
 
         unsafe {
             self.device

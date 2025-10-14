@@ -22,14 +22,12 @@ impl ContextDevice {
         let compute_queue_idx = queue_family_idx;
 
         let queue_priority = [1.0];
-        let mut queue_infos: Vec<vk::DeviceQueueCreateInfo> = Vec::new();
-        // A graphics queue is mandatory - presentation and compute queues that differ
-        // from the graphics queue depends on the device.
-        queue_infos.push(
+        // A compute queue is mandatory - obviously!!
+        let queue_infos: Vec<vk::DeviceQueueCreateInfo> = vec![
             vk::DeviceQueueCreateInfo::default()
                 .queue_family_index(compute_queue_idx)
                 .queue_priorities(&queue_priority),
-        );
+        ];
 
         let phys_features = unsafe {
             c_instance
@@ -116,7 +114,7 @@ fn find_physical_device(
                     if info.queue_flags.contains(vk::QueueFlags::COMPUTE)
                         && gpu_props.device_type == device_type
                     {
-                        info!("{:?}", gpu_props);
+                        info!("{gpu_props:?}");
                         Some((*phys_device, idx))
                     } else {
                         None

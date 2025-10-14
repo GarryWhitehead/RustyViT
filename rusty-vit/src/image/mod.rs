@@ -124,7 +124,7 @@ impl<T: PixelType, S: DeviceStorage<T>> Image<T, S> {
 
     pub fn try_get_data(&self) -> Result<Vec<T>, Box<dyn Error>> {
         self.device.try_sync()?;
-        Ok(self.device.try_from_device_vec(&self.data)?)
+        self.device.try_from_device_vec(&self.data)
     }
 
     fn compute_strides(

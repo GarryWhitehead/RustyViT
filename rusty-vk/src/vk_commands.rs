@@ -117,10 +117,8 @@ impl Commands {
 
     pub fn free_cmd_buffers(&mut self, device: &ash::Device) {
         let mut fences: Vec<vk::Fence> = Vec::with_capacity(MAX_CMD_BUFFER_IN_FLIGHT_COUNT);
-        for cmd_buffer in &self.cmd_buffers {
-            if let Some(cmds) = cmd_buffer {
-                fences.push(cmds.fence);
-            }
+        for cmd_buffer in self.cmd_buffers.iter().flatten() {
+            fences.push(cmd_buffer.fence);
         }
         // Wait for all cmd buffers that are currently active.
         if !fences.is_empty() {

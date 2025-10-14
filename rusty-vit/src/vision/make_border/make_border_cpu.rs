@@ -62,6 +62,7 @@ where
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Cpu {
     fn make_border_kernel<T: PixelType, F>(
         &self,

@@ -9,7 +9,7 @@ pub mod vision;
 use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
 use num::pow::Pow;
 
-const SQRT_2_OVER_PI: f32 = 0.7978845608028654;
+const SQRT_2_OVER_PI: f32 = 0.797_884_6;
 
 #[allow(dead_code)]
 fn compute_gelu(input: &[f32], size: u32) -> Vec<f32> {

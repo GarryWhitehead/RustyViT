@@ -1,10 +1,11 @@
 use image::{EncodableLayout, ImageReader};
+use rusty_vit::device::cpu::Cpu;
 #[cfg(feature = "cuda")]
 use rusty_vit::device::cuda::Cuda;
+#[cfg(feature = "vulkan")]
 use rusty_vit::device::vulkan::Vulkan;
 use rusty_vit::image::Image;
 use rusty_vit::vision::sep_filters::GaussianBlur;
-use rusty_vk::public_types::DeviceType;
 use show_image::event;
 
 fn image_to_planar(src: &[u8], width: usize, height: usize, channels: usize) -> Vec<u8> {
@@ -55,9 +56,9 @@ fn main() {
         3,
     );
 
-    //let dev = Cpu::default();
+    let mut dev = Cpu::default();
     //let dev = Cuda::try_new(0).unwrap();
-    let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+    //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
     let mut conv: GaussianBlur<f32, u8, _> = GaussianBlur::try_new(1.0, 9, &dev).unwrap();
     //let flipper = RandomFlipHorizontal::new(0.9);
     let mut image = Image::try_from_slice(
@@ -92,13 +93,13 @@ fn main() {
     win.set_image("demo", d_img).unwrap();
 
     for event in win.event_channel().unwrap() {
-        if let event::WindowEvent::KeyboardInput(event) = &event {
-            if event.input.key_code == Some(event::VirtualKeyCode::Escape)
-                && event.input.state.is_pressed()
-            {
-                break;
-            }
+        if let event::WindowEvent::KeyboardInput(event) = &event
+            && event.input.key_code == Some(event::VirtualKeyCode::Escape)
+            && event.input.state.is_pressed()
+        {
+            break;
         }
+
         if let event::WindowEvent::CloseRequested(_event) = &event {
             break;
         }

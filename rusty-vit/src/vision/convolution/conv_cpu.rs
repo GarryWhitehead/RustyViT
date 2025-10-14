@@ -76,14 +76,14 @@ impl Cpu {
         kernel: &[F],
         out: &mut [T],
     ) {
-        for col in 0..width {
+        for (col, o) in out.iter_mut().enumerate().take(width) {
             let mut accum = 0.0;
             for k in 0..kernel.len() {
                 let idx = col + (width * vert_lookup[row_idx + k]);
                 let val: f32 = input[idx].to_float();
                 accum += val * kernel[k].to_f32().unwrap();
             }
-            out[col] = T::from_float(accum);
+            *o = T::from_float(accum);
         }
     }
 
@@ -125,8 +125,8 @@ impl Cpu {
         let k_half_size = kernel_size >> 1;
         let mut out = vec![0usize; dim + kernel_size];
         // Indices for the top border.
-        for i in 0..k_half_size {
-            out[i] = 0;
+        for o in out.iter_mut().take(k_half_size) {
+            *o = 0;
         }
         // Input indices.
         for i in 0..dim {

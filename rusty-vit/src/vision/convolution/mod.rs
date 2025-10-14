@@ -7,6 +7,7 @@ use std::marker::PhantomData;
 mod conv_cpu;
 #[cfg(feature = "cuda")]
 mod conv_cu;
+#[cfg(feature = "vulkan")]
 mod conv_vk;
 
 pub trait Conv<T: PixelType, F: FloatType>: DeviceStorage<T> + DeviceStorage<F> {
@@ -61,6 +62,6 @@ impl<F: FloatType, T: PixelType, D: Conv<T, F>> Convolution<F, T, D> {
             panic!("kernel height cannot be greater than the kernel height");
         }
 
-        dev.convolution(src, &mut self.x_kernel, &self.y_kernel);
+        dev.convolution(src, &self.x_kernel, &self.y_kernel);
     }
 }

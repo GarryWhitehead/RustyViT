@@ -59,7 +59,7 @@ impl<'a> ShaderProgram {
             [Default::default(); MAX_DESC_SET_COUNT];
 
         // Create the descriptor set layouts for use later by the descriptor cache.
-        for idx in 0..MAX_DESC_SET_COUNT {
+        for (idx, ds_layout) in desc_set_layouts.iter_mut().enumerate() {
             let b = layout_bindings.get(&(idx as u32));
             let mut ci = vk::DescriptorSetLayoutCreateInfo::default();
             if let Some(binding) = b {
@@ -72,7 +72,7 @@ impl<'a> ShaderProgram {
                     .device
                     .create_descriptor_set_layout(&ci, None)?
             };
-            desc_set_layouts[idx] = layout;
+            *ds_layout = layout;
         }
 
         let mut spirv_words: Vec<u32> = Vec::new();
@@ -93,6 +93,7 @@ impl<'a> ShaderProgram {
         })
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn reflect_spirv(
         data: &[u8],
     ) -> Result<
@@ -168,7 +169,7 @@ impl<'a> ShaderProgram {
         device: &ash::Device,
     ) -> Result<vk::ShaderModule, Box<dyn Error>> {
         let ci = vk::ShaderModuleCreateInfo {
-            code_size: spirv_bytecode.len() * std::mem::size_of::<u32>(),
+            code_size: std::mem::size_of_val(spirv_bytecode),
             p_code: spirv_bytecode.as_ptr(),
             ..Default::default()
         };

@@ -36,6 +36,7 @@ impl<T: PixelType> super::CropKernel<T> for Cpu {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Cpu {
     pub fn crop_kernel<T: PixelType>(
         src: &[T],

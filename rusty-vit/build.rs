@@ -1,4 +1,6 @@
+#[cfg(feature = "vulkan")]
 use shaderc::ShaderKind;
+#[cfg(feature = "vulkan")]
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -97,12 +99,13 @@ fn build_cuda() {
     }
 }
 
+#[cfg(feature = "vulkan")]
 fn to_rust_type(ty: &str) -> &str {
     match ty {
         "uint8_t" => "u8",
         "uint16_t" => "u16",
         "float" => "f32",
-        _ => panic!("Unknown type {}", ty),
+        _ => panic!("Unknown type {ty}"),
     }
 }
 

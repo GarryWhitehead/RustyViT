@@ -30,17 +30,14 @@ fn read_buffer_bytes<T: DataSetBytes>(
     out: &mut [T],
 ) -> Result<(), Box<dyn Error>> {
     let mut buffer = vec![0u8; size_of::<T>()];
-    for i in 0..stride {
+    for o in out.iter_mut().take(stride) {
         let res = f.read_exact(&mut buffer);
-        match res {
-            Err(err) => {
-                if err.kind() == ErrorKind::UnexpectedEof {
-                    break;
-                }
-            }
-            _ => {}
-        };
-        out[i] = T::from_bytes(&buffer);
+        if let Err(err) = res
+            && err.kind() == ErrorKind::UnexpectedEof
+        {
+            break;
+        }
+        *o = T::from_bytes(&buffer);
     }
     Ok(())
 }
@@ -66,7 +63,7 @@ impl super::DataSetFormat for Cifar10Loader {
         if idx >= files.len() {
             panic!("File index out of bounds");
         }
-        &files[idx]
+        files[idx]
     }
 
     fn get_test_file(idx: usize) -> &'static str {
@@ -74,7 +71,7 @@ impl super::DataSetFormat for Cifar10Loader {
         if idx >= files.len() {
             panic!("File index out of bounds");
         }
-        &files[idx]
+        files[idx]
     }
 
     fn read_bytes_from_buffer(

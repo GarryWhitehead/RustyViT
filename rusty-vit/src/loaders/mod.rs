@@ -78,6 +78,7 @@ pub struct DataLoader<F: DataSetFormat> {
     phantom_data: PhantomData<F>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<F: DataSetFormat<Type = u8>> DataLoader<F> {
     pub fn try_new<D: DeviceStorage<F::Type>>(
         path: &str,
@@ -115,6 +116,7 @@ impl<F: DataSetFormat<Type = u8>> DataLoader<F> {
         })
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn next_batch<D: DeviceStorage<F::Type>>(
         &mut self,
         dev: &D,
@@ -129,6 +131,7 @@ impl<F: DataSetFormat<Type = u8>> DataLoader<F> {
         Some((labels, image))
     }
 
+    #[allow(clippy::type_complexity)]
     fn load_batch<D: DeviceStorage<F::Type>>(
         &mut self,
         dev: &D,

@@ -1,6 +1,7 @@
 mod resize_cpu;
 #[cfg(feature = "cuda")]
 mod resize_cu;
+#[cfg(feature = "vulkan")]
 mod resize_vk;
 
 use crate::device::DeviceStorage;
