@@ -1,4 +1,3 @@
-use crate::device::DeviceStorage;
 use crate::device::cpu::Cpu;
 use crate::image::{Image, PixelType};
 use rayon::prelude::*;

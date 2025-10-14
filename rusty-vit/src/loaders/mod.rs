@@ -12,7 +12,7 @@ use std::marker::PhantomData;
 pub mod cifar;
 
 #[derive(Debug, Clone, Copy)]
-enum DataType {
+pub enum DataType {
     TEST,
     TRAINING,
 }
@@ -37,13 +37,13 @@ impl<P: PixelType, D: DeviceStorage<P>> VitData<P, D> {
     }
 }
 
-trait DataSetReader {
+pub trait DataSetReader {
     type Type: PixelType + cifar::DataSetBytes;
 
     fn read_bytes_from_buffer(file: &str, out: &[Self::Type]) -> Result<(), Box<dyn Error>>;
 }
 
-trait DataSetFormat {
+pub trait DataSetFormat {
     type Type: PixelType + Sized;
     const IMAGE_FORMAT_TOTAL_IMAGE_SIZE: usize;
     const IMAGE_FORMAT_IMAGES_PER_FILE: usize;
@@ -62,7 +62,7 @@ trait DataSetFormat {
 }
 
 #[derive(Clone, Debug)]
-struct DataLoader<F: DataSetFormat> {
+pub struct DataLoader<F: DataSetFormat> {
     path: String,
     indices: Vec<usize>,
     pub(crate) batch_size: usize,
@@ -156,7 +156,8 @@ impl<F: DataSetFormat<Type = u8>> DataLoader<F> {
                     DataType::TEST => F::get_test_file(file_idx),
                 };
 
-                l[0] = F::read_bytes_from_buffer(file, image_idx, image).unwrap();
+                let file_path = format!("{}/{}", self.path, file);
+                l[0] = F::read_bytes_from_buffer(file_path.as_str(), image_idx, image).unwrap();
             });
 
         let dev_labels = dev.try_alloc_with_slice(labels.as_slice())?;

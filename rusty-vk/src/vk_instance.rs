@@ -5,7 +5,6 @@ use std::{borrow::Cow, error::Error};
 
 #[derive(Clone)]
 pub struct ContextInstance {
-    pub(crate) entry: Entry,
     pub instance: ash::Instance,
     pub debug_loader: Option<debug_utils::Instance>,
     pub debug_callback: vk::DebugUtilsMessengerEXT,
@@ -83,7 +82,6 @@ impl ContextInstance {
         }
 
         Ok(Self {
-            entry,
             instance: vk_instance,
             debug_loader,
             debug_callback,

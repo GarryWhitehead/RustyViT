@@ -1,11 +1,8 @@
-use image::metadata::Orientation::FlipHorizontal;
-use image::{EncodableLayout, GenericImageView, ImageReader};
-use rusty_vit::device::cpu::Cpu;
+use image::{EncodableLayout, ImageReader};
 #[cfg(feature = "cuda")]
 use rusty_vit::device::cuda::Cuda;
 use rusty_vit::device::vulkan::Vulkan;
 use rusty_vit::image::Image;
-use rusty_vit::vision::flip::RandomFlipHorizontal;
 use rusty_vit::vision::sep_filters::GaussianBlur;
 use rusty_vk::public_types::DeviceType;
 use show_image::event;
@@ -102,21 +99,21 @@ fn main() {
                 break;
             }
         }
-        if let event::WindowEvent::CloseRequested(event) = &event {
+        if let event::WindowEvent::CloseRequested(_event) = &event {
             break;
         }
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_to_planar() {
         let src = &[
             1, 2, 3, 1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6, 4, 5, 6, 7, 8, 9, 7, 8, 9, 7, 8, 9,
         ];
-        let res = image_to_planar(src, 3, 3, 3);
+        let res = crate::image_to_planar(src, 3, 3, 3);
         assert_eq!(
             &res,
             &[
@@ -130,7 +127,7 @@ mod tests {
         let src = &[
             1, 1, 1, 4, 4, 4, 7, 7, 7, 2, 2, 2, 5, 5, 5, 8, 8, 8, 3, 3, 3, 6, 6, 6, 9, 9, 9,
         ];
-        let res = image_to_interleaved(src, 3, 3, 3);
+        let res = crate::image_to_interleaved(src, 3, 3, 3);
         assert_eq!(
             &res,
             &[

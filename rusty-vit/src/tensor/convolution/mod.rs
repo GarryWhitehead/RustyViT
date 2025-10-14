@@ -2,6 +2,7 @@ mod conv_cpu;
 #[cfg(feature = "cuda")]
 mod conv_cu;
 
+#[allow(dead_code)]
 pub struct Convolution {
     in_channels: usize,
     out_channels: usize,

@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, ErrorKind, Read, Seek, SeekFrom};
 
-pub(crate) trait DataSetBytes {
+pub trait DataSetBytes {
     fn from_bytes(v: &[u8]) -> Self;
 }
 

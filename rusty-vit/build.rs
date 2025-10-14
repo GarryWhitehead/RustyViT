@@ -1,8 +1,8 @@
 use shaderc::ShaderKind;
-use std::fs;
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 fn main() {
     #[cfg(feature = "cuda")]
@@ -118,7 +118,7 @@ fn build_vulkan() {
         .iter()
         .for_each(|path| println!("cargo:rerun-if-changed={}", path.display()));
 
-    let mut compiler = shaderc::Compiler::new().unwrap();
+    let compiler = shaderc::Compiler::new().unwrap();
 
     glsl_paths.iter().for_each(|path| {
         ["uint8_t", "uint16_t", "float"].map(|ty| {

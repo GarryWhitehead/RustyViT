@@ -50,22 +50,12 @@ struct DescSetInstance {
     last_frame_used: u64,
 }
 
-impl DescSetInstance {
-    pub fn new() -> Self {
-        Self {
-            sets: Default::default(),
-            layouts: Default::default(),
-            last_frame_used: 0,
-        }
-    }
-}
-
 #[derive(Debug, Default)]
 pub struct DescriptorCache {
     desc_sets: HashMap<DescriptorKey, DescSetInstance>,
     desc_pool: vk::DescriptorPool,
-    desc_pool_sz: usize,
-    desc_set_pool: Vec<vk::DescriptorPool>,
+    _desc_pool_sz: usize,
+    _desc_set_pool: Vec<vk::DescriptorPool>,
     desc_requires: DescriptorKey,
 }
 
@@ -74,8 +64,8 @@ impl DescriptorCache {
         Self {
             desc_sets: HashMap::new(),
             desc_pool: Self::create_desc_pool(1000, device),
-            desc_pool_sz: 1000,
-            desc_set_pool: vec![],
+            _desc_pool_sz: 1000,
+            _desc_set_pool: vec![],
             desc_requires: Default::default(),
         }
     }

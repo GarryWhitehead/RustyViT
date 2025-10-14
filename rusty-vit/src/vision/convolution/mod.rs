@@ -20,7 +20,7 @@ pub trait Conv<T: PixelType, F: FloatType>: DeviceStorage<T> + DeviceStorage<F> 
 }
 
 #[derive(Debug, Clone)]
-struct Kernel<F: FloatType, D: DeviceStorage<F>> {
+pub struct Kernel<F: FloatType, D: DeviceStorage<F>> {
     data: D::Vec,
     device: D,
 }

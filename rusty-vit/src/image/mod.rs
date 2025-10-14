@@ -1,17 +1,14 @@
 pub mod cpu_image;
 #[cfg(feature = "cuda")]
 pub mod cu_image;
-
-use crate::device::DeviceStorage;
-use crate::type_traits::{BType, SafeZeros};
 #[cfg(feature = "cuda")]
 use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
+
+use crate::device::DeviceStorage;
+use crate::type_traits::BType;
 use num::Zero;
 use num::traits::{FromBytes, ToBytes};
-use std::cell::RefCell;
 use std::error::Error;
-use std::ops::Add;
-use std::sync::Arc;
 
 pub trait ToFloat: Default + Copy + Clone + 'static {
     fn to_float(self) -> f32;

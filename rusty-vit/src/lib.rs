@@ -5,16 +5,13 @@ pub mod tensor;
 mod type_traits;
 pub mod vision;
 
-use crate::tensor::Tensor;
 #[cfg(feature = "cuda")]
 use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
-use num::Zero;
 use num::pow::Pow;
-use rayon::prelude::*;
-use std::fmt::Debug;
 
 const SQRT_2_OVER_PI: f32 = 0.7978845608028654;
 
+#[allow(dead_code)]
 fn compute_gelu(input: &[f32], size: u32) -> Vec<f32> {
     let mut result: Vec<f32> = vec![0.0; size as usize];
     for idx in 0..size as usize {
@@ -27,10 +24,12 @@ fn compute_gelu(input: &[f32], size: u32) -> Vec<f32> {
     result
 }
 
+#[allow(dead_code)]
 fn compute_max(v: &[f32]) -> f32 {
     *v.iter().max_by(|a, b| a.total_cmp(b)).unwrap()
 }
 
+/*#[allow(dead_code)]
 fn compute_softmax(x: &mut [f32], size: u32) {
     // Find the max value in the vector for numerical stability.
     let max_value = compute_max(x);
@@ -41,13 +40,15 @@ fn compute_softmax(x: &mut [f32], size: u32) {
         sum += x[idx];
     }
     // Normalise values.
-    x.iter().map(|value| value / sum);
+    //x.iter().map(|value| value / sum).collect();
+}*/
+
+#[allow(dead_code)]
+fn compute_kaiming_uniform(_x: &[f32], _size: u32, negative_slope: f32) {
+    let _gain = f32::sqrt(2.0 / (1.0 + f32::powf(negative_slope, 3.0)));
 }
 
-fn compute_kaiming_uniform(x: &[f32], size: u32, negative_slope: f32) {
-    let gain = f32::sqrt(2.0 / (1.0 + f32::powf(negative_slope, 3.0)));
-}
-
+#[allow(dead_code)]
 fn compute_pos_angle_vec(i: usize, j: usize, token_len: usize) -> f32 {
     i as f32 / 10000.0.pow(2.0 * (j as f32 / 2.0) / token_len as f32) as f32
 }

@@ -1,6 +1,5 @@
 use crate::vk_instance::ContextInstance;
-use ash::khr::{surface, swapchain};
-use ash::{Entry, Instance, vk};
+use ash::{Instance, vk};
 use log::info;
 use std::error::Error;
 
@@ -18,7 +17,7 @@ impl ContextDevice {
         device_type: vk::PhysicalDeviceType,
     ) -> Result<Self, Box<dyn Error>> {
         let (physical_device, queue_family_idx) =
-            find_physical_device(&c_instance.instance, &c_instance.entry, device_type)?;
+            find_physical_device(&c_instance.instance, device_type)?;
 
         let compute_queue_idx = queue_family_idx;
 
@@ -95,7 +94,6 @@ impl ContextDevice {
 
 fn find_physical_device(
     instance: &Instance,
-    entry: &Entry,
     device_type: vk::PhysicalDeviceType,
 ) -> Result<(vk::PhysicalDevice, u32), Box<dyn Error>> {
     let phys_devices = unsafe {
@@ -105,7 +103,6 @@ fn find_physical_device(
     };
 
     // Find an appropriate physical device.
-    let surface_loader = surface::Instance::new(entry, instance);
     let (phys_device, queue_family_idx) = phys_devices
         .iter()
         .find_map(|phys_device| unsafe {

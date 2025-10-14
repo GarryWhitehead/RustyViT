@@ -184,6 +184,7 @@ impl Commands {
         self.external_signals.clear();
     }
 
+    #[allow(dead_code)]
     pub fn add_external_wait_signal(&mut self, signal: vk::Semaphore) {
         self.external_signals.push(signal);
     }

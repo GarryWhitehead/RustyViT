@@ -7,7 +7,7 @@ pub struct Instance {
     pub buffer: vk::Buffer,
     pub size: vk::DeviceSize,
     pub memory: vk_mem::Allocation,
-    frame_last_used: u64,
+    _frame_last_used: u64,
 }
 
 impl Instance {
@@ -16,7 +16,7 @@ impl Instance {
             buffer,
             size,
             memory,
-            frame_last_used: 0,
+            _frame_last_used: 0,
         }
     }
 }
@@ -26,7 +26,7 @@ impl Instance {
 pub struct StagingPool {
     free_stages: Vec<Instance>,
     in_use_stages: Vec<Instance>,
-    current_frame: u64,
+    _current_frame: u64,
 }
 
 impl StagingPool {
@@ -34,7 +34,7 @@ impl StagingPool {
         Self {
             free_stages: Vec::new(),
             in_use_stages: Vec::new(),
-            current_frame: 0,
+            _current_frame: 0,
         }
     }
 
@@ -64,11 +64,12 @@ impl StagingPool {
     /// time are destroyed. Those buffers which are in the in-use container but are
     /// have been allocated a number of frames ago, are moved to the free stage
     /// container for re-use.
+    #[allow(dead_code)]
     pub fn gc(&mut self, current_frame: u64, vma_allocator: &vk_mem::Allocator) {
-        if self.current_frame >= MAX_CMD_BUFFER_IN_FLIGHT_COUNT as u64 {
+        if self._current_frame >= MAX_CMD_BUFFER_IN_FLIGHT_COUNT as u64 {
             self.free_stages.retain_mut(|instance| {
                 let collect_frame =
-                    instance.frame_last_used + MAX_CMD_BUFFER_IN_FLIGHT_COUNT as u64;
+                    instance._frame_last_used + MAX_CMD_BUFFER_IN_FLIGHT_COUNT as u64;
                 if collect_frame < current_frame {
                     unsafe { vma_allocator.destroy_buffer(instance.buffer, &mut instance.memory) };
                     return false;
@@ -77,15 +78,15 @@ impl StagingPool {
             });
             // In use buffers which haven't been used in a while and transferred to the free stages container.
             for idx in 0..self.in_use_stages.len() {
-                let collect_frame =
-                    self.in_use_stages[idx].frame_last_used + MAX_CMD_BUFFER_IN_FLIGHT_COUNT as u64;
+                let collect_frame = self.in_use_stages[idx]._frame_last_used
+                    + MAX_CMD_BUFFER_IN_FLIGHT_COUNT as u64;
                 if collect_frame < current_frame {
                     let instance = self.in_use_stages.remove(idx);
                     self.free_stages.push(instance);
                 }
             }
         }
-        self.current_frame += 1;
+        self._current_frame += 1;
     }
 
     pub fn destroy(&mut self, vma_allocator: &vk_mem::Allocator) {

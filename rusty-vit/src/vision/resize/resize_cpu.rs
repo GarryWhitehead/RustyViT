@@ -86,7 +86,7 @@ impl Cpu {
     pub fn resize_kernel<T: PixelType>(
         &mut self,
         src: &[T],
-        channels: usize,
+        _channels: usize,
         src_width: usize,
         src_height: usize,
         dst_width: usize,
@@ -173,6 +173,7 @@ impl Cpu {
         dst
     }
 
+    #[allow(dead_code)]
     fn transpose_block<const BLOCK_SIZE: usize>(
         input: &[u8],
         width: usize,

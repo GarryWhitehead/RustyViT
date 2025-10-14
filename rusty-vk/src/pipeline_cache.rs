@@ -6,7 +6,7 @@ use std::ffi::c_void;
 use std::{collections::HashMap, hash::Hash};
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Default)]
-struct PipelineLayoutKey {
+pub(crate) struct PipelineLayoutKey {
     desc_layouts: [vk::DescriptorSetLayout; MAX_DESC_SET_COUNT],
 }
 
@@ -26,13 +26,13 @@ impl PLayout {
 }
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Default)]
-struct PipelineKey {
+pub(crate) struct PipelineKey {
     pub(crate) module: vk::ShaderModule,
     pub(crate) layout: vk::PipelineLayout,
 }
 
 #[derive(Copy, Clone, Debug)]
-struct PLine {
+pub(crate) struct PLine {
     pipeline: vk::Pipeline,
     cache: vk::PipelineCache,
 }

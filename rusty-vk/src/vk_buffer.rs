@@ -14,7 +14,7 @@ pub struct Buffer {
     pub(crate) buffer: vk::Buffer,
     pub(crate) memory: vk_mem::Allocation,
     pub(crate) size: vk::DeviceSize,
-    pub(crate) frames_until_gc: u32,
+    pub(crate) _frames_until_gc: u32,
 }
 
 impl Buffer {
@@ -53,7 +53,7 @@ impl Buffer {
             buffer,
             memory: allocation,
             size,
-            frames_until_gc: 0,
+            _frames_until_gc: 0,
         }
     }
 
@@ -68,11 +68,9 @@ impl Buffer {
         let mapped = unsafe { allocator.map_memory(&mut self.memory).unwrap() };
         unsafe { mapped.copy_from(data, data_size as usize) };
         unsafe { allocator.unmap_memory(&mut self.memory) };
-        unsafe {
-            allocator
-                .flush_allocation(&mut self.memory, offset, data_size)
-                .unwrap()
-        };
+        allocator
+            .flush_allocation(&mut self.memory, offset, data_size)
+            .unwrap();
     }
 
     pub fn map_to_host<T: num::Zero + Clone>(

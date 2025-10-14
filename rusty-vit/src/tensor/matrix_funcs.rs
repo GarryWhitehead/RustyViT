@@ -60,7 +60,7 @@ pub fn add_block<TYPE, const BLOCK_SIZE: usize>(
 {
     assert_eq!(m1.len(), width * height);
     assert_eq!(m2.len(), width * height);
-    let dst = vec![TYPE::zero(); width * height];
+    //let dst = vec![TYPE::zero(); width * height];
     for y in (0..height).step_by(BLOCK_SIZE) {
         for x in (0..width).step_by(BLOCK_SIZE) {
             for yy in y..y + BLOCK_SIZE {
