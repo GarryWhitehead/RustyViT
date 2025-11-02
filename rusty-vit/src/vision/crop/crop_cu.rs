@@ -1,4 +1,3 @@
-use crate::device::DeviceStorage;
 use crate::device::cu_utils::*;
 use crate::device::cuda::Cuda;
 use crate::image::{Image, PixelType};
