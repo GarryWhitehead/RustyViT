@@ -43,26 +43,15 @@ impl Cpu {
 }
 
 impl<T: FloatType> super::MatMulKernel<T> for Cpu {
-    fn matmul(&self, lhs: &Tensor<T, Self>, rhs: &Tensor<T, Self>) -> Tensor<T, Self> {
+    fn matmul(&mut self, lhs: &Tensor<T, Self>, rhs: &Tensor<T, Self>) -> Tensor<T, Self> {
         let dim = lhs.shape.len();
-        let (m, k, n) = match dim {
-            2 => (lhs.shape[0], lhs.shape[1], rhs.shape[1]),
-            3 => (lhs.shape[1], lhs.shape[2], rhs.shape[2]),
-            4 => (lhs.shape[2], lhs.shape[3], rhs.shape[3]),
-            _ => panic!("Unsupported shape dimension"),
-        };
-
-        let out_shape: Vec<usize> = match dim {
-            2 => vec![m, n],
-            3 => vec![lhs.shape[0], m, n],
-            4 => vec![lhs.shape[0], lhs.shape[1], m, n],
-            _ => panic!("Unsupported shape dimension"),
-        };
+        let (m, k, n) = super::inner_shape(&lhs.shape, &rhs.shape);
+        let out_shape = super::compute_shape(&lhs.shape, m, n);
 
         let mut out = Tensor::try_new(&out_shape, self).unwrap();
 
         // Check for batched matrix multiply (four dimensions).
-        if dim > 2 && dim == 4 {
+        if dim == 4 {
             let bsize = lhs.shape[0];
             let csize = lhs.shape[1];
             for b in 0..bsize {
@@ -89,7 +78,7 @@ impl<T: FloatType> super::MatMulKernel<T> for Cpu {
             }
         }
         // Check for batched matrix multiply (three dimensions).
-        else if dim > 2 && dim == 3 {
+        else if dim == 3 {
             let bsize = lhs.shape[0];
             for b in 0..bsize {
                 let start = b * lhs.strides[1];

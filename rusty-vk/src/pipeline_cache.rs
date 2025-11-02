@@ -3,7 +3,7 @@ use crate::vk_shader::{ShaderProgram, SpecConstants};
 use ash::vk;
 use ash::vk::Handle;
 use std::ffi::c_void;
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, hash::Hash, ptr};
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Default)]
 pub(crate) struct PipelineLayoutKey {
@@ -113,8 +113,16 @@ impl PipelineCache {
     ) -> (vk::PipelineCache, vk::Pipeline) {
         assert!(!layout.is_null());
 
+        let sg = vk::PipelineShaderStageRequiredSubgroupSizeCreateInfo {
+            // Hard-coded value for now (would this really want to be a user option?)
+            required_subgroup_size: 32,
+            ..Default::default()
+        };
+
         let mut stage = vk::PipelineShaderStageCreateInfo {
             stage: vk::ShaderStageFlags::COMPUTE,
+            p_next: ptr::from_ref(&sg) as *const c_void,
+            flags: vk::PipelineShaderStageCreateFlags::REQUIRE_FULL_SUBGROUPS,
             module: *module,
             p_name: c"main".as_ptr(),
             ..Default::default()

@@ -5,8 +5,6 @@ pub mod tensor;
 mod type_traits;
 pub mod vision;
 
-#[cfg(feature = "cuda")]
-use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
 use num::pow::Pow;
 
 const SQRT_2_OVER_PI: f32 = 0.797_884_6;

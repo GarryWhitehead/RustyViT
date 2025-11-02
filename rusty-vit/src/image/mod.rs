@@ -1,8 +1,6 @@
 pub mod cpu_image;
 #[cfg(feature = "cuda")]
 pub mod cu_image;
-#[cfg(feature = "cuda")]
-use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
 
 use crate::device::DeviceStorage;
 use crate::type_traits::BType;

@@ -3,27 +3,24 @@ use crate::image::{Image, PixelType};
 use crate::tensor::Tensor;
 use log::{debug, info};
 use std::collections::HashMap;
+use std::env;
 use std::error::Error;
 use std::fmt::Debug;
 use std::sync::Arc;
-use std::{env, fs};
 
 use crate::device::cu_utils::*;
 use crate::type_traits::{BType, FloatType};
-use cudarc::driver::CudaView;
-use cudarc::nvrtc::{CompileOptions, Ptx, compile_ptx_with_opts};
-use cudarc::{
-    driver::{
-        CudaContext, CudaFunction, CudaSlice, CudaStream, DeviceRepr, LaunchConfig, PushKernelArg,
-        ValidAsZeroBits,
-    },
-    nvrtc::compile_ptx,
+use cudarc::cublas::CudaBlas;
+use cudarc::driver::{
+    CudaContext, CudaFunction, CudaSlice, CudaStream, LaunchConfig, PushKernelArg,
 };
-use num::Zero;
+use cudarc::nvrtc::Ptx;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Cuda {
     pub(crate) ctx: Arc<CudaContext>,
+    pub(crate) blas: Arc<CudaBlas>,
     pub(crate) stream0: Arc<CudaStream>,
     pub(crate) stream1: Arc<CudaStream>,
     pub(crate) kernel_funcs: HashMap<String, CudaFunction>,
@@ -33,10 +30,12 @@ impl Cuda {
     pub fn try_new(ordinal: usize) -> Result<Cuda, Box<dyn Error>> {
         let ctx = CudaContext::new(ordinal)?;
         debug!("Created new Cuda context: {:?}", ctx);
+        let blas = CudaBlas::new(ctx.default_stream())?;
         let stream0 = ctx.default_stream();
         let stream1 = ctx.default_stream().fork()?;
         Ok(Cuda {
             ctx,
+            blas: Arc::new(blas),
             stream0,
             stream1,
             kernel_funcs: HashMap::new(),

@@ -3,7 +3,9 @@ use crate::descriptor_cache::*;
 use crate::public_types::{BufferView, TextureView, UniformBuffer};
 use crate::resource_cache::TextureHandle;
 use ash::vk;
-use rspirv_reflect::Reflection;
+use spirq::prelude::{ConstantValue, EntryPoint, Variable};
+use spirq::ty::{AccessType, DescriptorType};
+use spirq::*;
 use std::{collections::HashMap, error::Error};
 
 pub const UBO_SHADER_BINDING: usize = 0;
@@ -26,11 +28,16 @@ impl Default for WorkSize {
 #[derive(Debug, Clone)]
 pub struct BindInfo {
     binding: u32,
-    desc_type: rspirv_reflect::DescriptorType,
+    desc_type: DescriptorType,
+    access: Option<AccessType>,
 }
 impl BindInfo {
-    pub fn new(binding: u32, desc_type: rspirv_reflect::DescriptorType) -> Self {
-        Self { binding, desc_type }
+    pub fn new(binding: u32, desc_type: DescriptorType) -> Self {
+        Self {
+            binding,
+            desc_type,
+            access: None,
+        }
     }
 }
 
@@ -93,6 +100,29 @@ impl<'a> ShaderProgram {
         })
     }
 
+    #[allow(clippy::collapsible_if)]
+    fn get_compute_group_size(entry_point: &EntryPoint) -> Option<(u32, u32, u32)> {
+        for mode in entry_point.exec_modes.iter() {
+            if mode.exec_mode == spirv::ExecutionMode::LocalSize
+                || mode.exec_mode == spirv::ExecutionMode::LocalSizeHint
+            {
+                if let [
+                    ConstantValue::U32(x),
+                    ConstantValue::U32(y),
+                    ConstantValue::U32(z),
+                ] = mode.operands[..]
+                    .iter()
+                    .map(|op| op.value.clone())
+                    .collect::<Vec<_>>()
+                    .as_slice()
+                {
+                    return Some((*x, *y, *z));
+                }
+            }
+        }
+        None
+    }
+
     #[allow(clippy::type_complexity)]
     pub fn reflect_spirv(
         data: &[u8],
@@ -104,62 +134,92 @@ impl<'a> ShaderProgram {
         ),
         Box<dyn Error>,
     > {
-        let reflect = Reflection::new_from_spirv(data)?;
-        let (wx, wy, wz) = reflect.get_compute_group_size().unwrap();
-        let work_size = WorkSize {
-            x: wx,
-            y: wy,
-            z: wz,
-        };
+        let entry_points = ReflectConfig::new()
+            .spv(data)
+            .ref_all_rscs(true)
+            .reflect()?;
 
         let mut layout_bindings: HashMap<u32, Vec<vk::DescriptorSetLayoutBinding<'a>>> =
             HashMap::new();
         let mut binding_map: HashMap<String, BindInfo> = HashMap::new();
-        for (set, binding) in reflect.get_descriptor_sets().unwrap() {
-            for (bind, info) in binding {
-                let mut layout = vk::DescriptorSetLayoutBinding {
-                    binding: bind,
-                    stage_flags: vk::ShaderStageFlags::COMPUTE,
-                    descriptor_count: 1,
-                    ..Default::default()
-                };
-                match info.ty {
-                    rspirv_reflect::DescriptorType::STORAGE_BUFFER => {
-                        if set != SSBO_SHADER_BINDING as u32 {
-                            return Err("Storage buffer must be set 1.".into());
+        for entry_point in entry_points.iter() {
+            for var in entry_point.vars.iter() {
+                match var {
+                    Variable::Descriptor {
+                        name,
+                        desc_bind,
+                        desc_ty,
+                        ty: _ty,
+                        nbind: _nbind,
+                    } => {
+                        let mut layout = vk::DescriptorSetLayoutBinding {
+                            binding: desc_bind.bind(),
+                            stage_flags: vk::ShaderStageFlags::COMPUTE,
+                            descriptor_count: 1,
+                            ..Default::default()
+                        };
+                        let mut bind_info = BindInfo::new(desc_bind.bind(), desc_ty.clone());
+                        match desc_ty {
+                            DescriptorType::StorageImage(s) => {
+                                if desc_bind.set() != IMAGE_STORAGE_SHADER_BINDING as u32 {
+                                    return Err("Storage images must be set 2.".into());
+                                }
+                                layout.descriptor_type = vk::DescriptorType::STORAGE_IMAGE;
+                                bind_info.access = Some(*s);
+                            }
+                            DescriptorType::StorageBuffer(s) => {
+                                if desc_bind.set() != SSBO_SHADER_BINDING as u32 {
+                                    return Err("Storage buffer must be set 1.".into());
+                                }
+                                layout.descriptor_type = vk::DescriptorType::STORAGE_BUFFER;
+                                bind_info.access = Some(*s);
+                            }
+                            DescriptorType::UniformBuffer() => {
+                                if desc_bind.set() != UBO_SHADER_BINDING as u32 {
+                                    return Err("Uniform buffer must be set 0.".into());
+                                }
+                                layout.descriptor_type = vk::DescriptorType::UNIFORM_BUFFER;
+                            }
+                            _ => {
+                                panic!("Unsupported descriptor type.");
+                            }
                         }
-                        layout.descriptor_type = vk::DescriptorType::STORAGE_BUFFER
-                    }
-                    rspirv_reflect::DescriptorType::UNIFORM_BUFFER => {
-                        if set != UBO_SHADER_BINDING as u32 {
-                            return Err("Uniform buffer must be set 0.".into());
+                        let v = layout_bindings.get_mut(&desc_bind.set());
+                        match v {
+                            Some(value) => {
+                                value.push(layout);
+                            }
+                            None => {
+                                layout_bindings.insert(desc_bind.set(), vec![layout]);
+                            }
                         }
-                        layout.descriptor_type = vk::DescriptorType::UNIFORM_BUFFER
-                    }
-                    rspirv_reflect::DescriptorType::STORAGE_IMAGE => {
-                        if set != IMAGE_STORAGE_SHADER_BINDING as u32 {
-                            return Err("Storage images must be set 2.".into());
+                        if name.is_none() {
+                            panic!(
+                                "Binding name is empty - Vulkan backend wont behave as expected."
+                            )
                         }
-                        layout.descriptor_type = vk::DescriptorType::STORAGE_IMAGE
+
+                        binding_map.insert(name.clone().unwrap(), bind_info);
                     }
-                    _ => {
-                        panic!("Unsupported descriptor type.");
+                    Variable::SpecConstant {
+                        name: _name,
+                        spec_id: _id,
+                        ty: _ty,
+                    } => {
+                        // TODO: Use the info here to create the spec layout.
                     }
+                    _ => {}
                 }
-                let v = layout_bindings.get_mut(&set);
-                match v {
-                    Some(value) => {
-                        value.push(layout);
-                    }
-                    None => {
-                        layout_bindings.insert(set, vec![layout]);
-                    }
-                }
-                if info.name.is_empty() {
-                    panic!("Binding name is empty - Vulkan backend wont behave as expected.")
-                }
-                binding_map.insert(info.name.clone(), BindInfo::new(bind, info.ty));
             }
+        }
+
+        let mut work_size = WorkSize::default();
+        for entry_point in entry_points.iter() {
+            if let Some((x, y, z)) = Self::get_compute_group_size(entry_point) {
+                work_size.x = x;
+                work_size.y = y;
+                work_size.z = z;
+            };
         }
         Ok((layout_bindings, binding_map, work_size))
     }
@@ -185,7 +245,7 @@ impl<'a> ShaderProgram {
         let binding = self.binding_map.get(ubo_name);
         match binding {
             Some(info) => {
-                if info.desc_type != rspirv_reflect::DescriptorType::UNIFORM_BUFFER {
+                if info.desc_type != DescriptorType::UniformBuffer() {
                     return Err("Binding not registered as a UBO.".into());
                 }
                 self.ubos[info.binding as usize] =
@@ -206,7 +266,7 @@ impl<'a> ShaderProgram {
         let binding = self.binding_map.get(ssbo_name);
         match binding {
             Some(info) => {
-                if info.desc_type != rspirv_reflect::DescriptorType::STORAGE_BUFFER {
+                if info.desc_type != DescriptorType::StorageBuffer(info.access.unwrap()) {
                     return Err("Binding not registered as a SSBO.".into());
                 }
                 self.ssbos[info.binding as usize] = Some(*view);
@@ -227,7 +287,7 @@ impl<'a> ShaderProgram {
         let binding = self.binding_map.get(image_name);
         match binding {
             Some(info) => {
-                if info.desc_type != rspirv_reflect::DescriptorType::STORAGE_IMAGE {
+                if info.desc_type != DescriptorType::StorageImage(info.access.unwrap()) {
                     return Err("Binding not registered as a image storage type.".into());
                 }
                 self.storage_images[info.binding as usize] = Some(TextureView::new(texture));

@@ -105,25 +105,27 @@ fn to_rust_type(ty: &str) -> &str {
         "uint8_t" => "u8",
         "uint16_t" => "u16",
         "float" => "f32",
+        "double" => "f64",
         _ => panic!("Unknown type {ty}"),
     }
 }
 
 #[cfg(feature = "vulkan")]
 fn build_vulkan() {
-    // Glob for glsl files.
+    let compiler = shaderc::Compiler::new().unwrap();
+
+    // Note: vision and tensor shaders are compiled separately due mainly to different macro definitions.
+    // Glob for vision glsl files.
     let out_dir = std::env::var("OUT_DIR").unwrap();
-    let glsl_paths: Vec<PathBuf> = glob::glob("src/**/*.glsl")
+    let vision_glsl_paths: Vec<PathBuf> = glob::glob("shaders/vulkan/vision/*.glsl")
         .unwrap()
         .map(|path| path.unwrap())
         .collect();
-    glsl_paths
+    vision_glsl_paths
         .iter()
         .for_each(|path| println!("cargo:rerun-if-changed={}", path.display()));
 
-    let compiler = shaderc::Compiler::new().unwrap();
-
-    glsl_paths.iter().for_each(|path| {
+    vision_glsl_paths.iter().for_each(|path| {
         ["uint8_t", "uint16_t", "float"].map(|ty| {
             let filename = Path::new(path).file_name().unwrap().to_str().unwrap();
             let mut options = shaderc::CompileOptions::new().unwrap();
@@ -143,6 +145,48 @@ fn build_vulkan() {
                     "{}/{}_{}.spv",
                     out_dir,
                     to_rust_type(ty),
+                    Path::new(filename).file_stem().unwrap().to_str().unwrap()
+                ),
+                artifact.as_binary_u8(),
+            )
+            .unwrap();
+        });
+    });
+
+    // Tensor shaders.
+    let tensor_glsl_paths: Vec<PathBuf> = glob::glob("shaders/vulkan/tensor/*.glsl")
+        .unwrap()
+        .map(|path| path.unwrap())
+        .collect();
+    tensor_glsl_paths
+        .iter()
+        .for_each(|path| println!("cargo:rerun-if-changed={}", path.display()));
+
+    tensor_glsl_paths.iter().for_each(|path| {
+        [("float", "float32_t")].map(|ty| {
+            let filename = Path::new(path).file_name().unwrap().to_str().unwrap();
+            let mut options = shaderc::CompileOptions::new().unwrap();
+            options.add_macro_definition("FLOAT_TYPE", Some(ty.0));
+            options.add_macro_definition("COOP_FLOAT_TYPE", Some(ty.1));
+            options.set_target_env(
+                shaderc::TargetEnv::Vulkan,
+                shaderc::EnvVersion::Vulkan1_3 as u32,
+            );
+            let glsl_src = fs::read_to_string(&path).unwrap();
+            let artifact = compiler
+                .compile_into_spirv(
+                    &glsl_src,
+                    ShaderKind::Compute,
+                    filename,
+                    "main",
+                    Some(&options),
+                )
+                .unwrap();
+            fs::write(
+                format!(
+                    "{}/{}_{}.spv",
+                    out_dir,
+                    to_rust_type(ty.0),
                     Path::new(filename).file_stem().unwrap().to_str().unwrap()
                 ),
                 artifact.as_binary_u8(),

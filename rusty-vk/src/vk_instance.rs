@@ -4,10 +4,14 @@ use std::ffi::{CStr, c_char};
 use std::{borrow::Cow, error::Error};
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct ContextInstance {
     pub instance: ash::Instance,
     pub debug_loader: Option<debug_utils::Instance>,
     pub debug_callback: vk::DebugUtilsMessengerEXT,
+    // Note: This isn't used directly but can not be dropped until the
+    // Vulkan instance is destroyed.
+    pub(crate) entry: Entry,
 }
 
 impl ContextInstance {
@@ -85,6 +89,7 @@ impl ContextInstance {
             instance: vk_instance,
             debug_loader,
             debug_callback,
+            entry,
         })
     }
 

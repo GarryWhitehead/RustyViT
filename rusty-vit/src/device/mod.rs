@@ -1,8 +1,6 @@
 use crate::image::{Image, PixelType};
 use crate::tensor::Tensor;
 use crate::type_traits::FloatType;
-#[cfg(feature = "cuda")]
-use cudarc::driver::DeviceRepr;
 use std::error::Error;
 use std::fmt::Debug;
 

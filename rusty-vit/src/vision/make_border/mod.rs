@@ -51,11 +51,15 @@ impl MakeBorder {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "vulkan")]
+    use crate::device::vulkan::Vulkan;
+    use rusty_vk::public_types::DeviceType;
+
     #[test]
     fn test_make_border_one_pad() {
-        let mut dev = crate::device::cpu::Cpu::default();
+        //let mut dev = crate::device::cpu::Cpu::default();
         //let dev = Cuda::try_new(0).unwrap();
-        //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+        let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
         let mb = crate::vision::make_border::MakeBorder::new(1);
         let mut src: crate::image::Image<u8, _> = crate::image::Image::try_from_slice(
             &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
