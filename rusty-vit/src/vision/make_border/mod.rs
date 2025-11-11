@@ -51,15 +51,11 @@ impl MakeBorder {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "vulkan")]
-    use crate::device::vulkan::Vulkan;
-    use rusty_vk::public_types::DeviceType;
+    use crate::tests::TestDevice;
 
     #[test]
     fn test_make_border_one_pad() {
-        //let mut dev = crate::device::cpu::Cpu::default();
-        //let dev = Cuda::try_new(0).unwrap();
-        let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+        let mut dev = TestDevice::default();
         let mb = crate::vision::make_border::MakeBorder::new(1);
         let mut src: crate::image::Image<u8, _> = crate::image::Image::try_from_slice(
             &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
@@ -82,8 +78,7 @@ mod tests {
 
     #[test]
     fn test_make_border_none_power_two_dims() {
-        let mut dev = crate::device::cpu::Cpu::default();
-        //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+        let mut dev = TestDevice::default();
         let mb = crate::vision::make_border::MakeBorder::new(1);
         let mut src: crate::image::Image<u8, _> =
             crate::image::Image::try_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9], 1, 3, 3, 1, &mut dev)
@@ -99,9 +94,7 @@ mod tests {
 
     #[test]
     fn test_make_border_batched() {
-        //let dev = Cuda::try_new(0).unwrap();
-        let mut dev = crate::device::cpu::Cpu::default();
-        //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+        let mut dev = TestDevice::default();
         let (b, c, w, h) = (20, 3, 3, 3);
         let template = &[1, 2, 3, 4, 5, 6, 7, 8, 9];
         let mut src = vec![0u8; b * c * w * h];

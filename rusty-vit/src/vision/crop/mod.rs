@@ -66,12 +66,12 @@ impl RandomCrop {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::TestDevice;
+
     #[test]
     fn test_crop() {
         let src = &[1, 2, 3, 4, 5, 6, 7, 8, 9];
-        //let dev = Cuda::try_new(0).unwrap();
-        let mut dev = crate::device::cpu::Cpu::default();
-        //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+        let mut dev = TestDevice::default();
         let cropper = crate::vision::crop::RandomCrop::new(3, 3, 3, 3);
         let mut img: crate::image::Image<u8, _> =
             crate::image::Image::try_from_slice(src, 1, 3, 3, 1, &mut dev).unwrap();
@@ -81,9 +81,7 @@ mod tests {
 
     #[test]
     fn test_crop_batched() {
-        //let dev = Cuda::try_new(0).unwrap();
-        let mut dev = crate::device::cpu::Cpu::default();
-        //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+        let mut dev = TestDevice::default();
         let (b, c, w, h) = (20, 3, 3, 3);
         let template = &[1, 2, 3, 4, 5, 6, 7, 8, 9];
         let mut src = vec![0u8; b * c * w * h];

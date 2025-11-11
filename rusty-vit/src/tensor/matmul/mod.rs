@@ -34,31 +34,138 @@ pub fn compute_shape(lhs_shape: &[usize], m: usize, n: usize) -> Vec<usize> {
 
 #[cfg(test)]
 mod tests {
-    use crate::device::cpu::Cpu;
-    //use crate::device::cuda::Cuda;
-    //use crate::device::vulkan::Vulkan;
     use crate::tensor::Tensor;
-    // use rusty_vk::public_types::DeviceType;
+    use crate::tests::TestDevice;
+    use approxim::assert_abs_diff_eq;
+    use half::f16;
+
+    const DATA_A: [f32; 12] = [
+        0.5086, 0.5234, 0.2684, 0.8075, 0.8437, 0.9951, 0.0774, 0.7539, 0.8894, 0.8119, 0.2693,
+        0.7249,
+    ];
+    const DATA_B: [f32; 6] = [0.4651, 0.9106, 0.3360, 0.5534, 0.8092, 0.3827];
+    const EXPECTED: [f32; 8] = [
+        0.62960154, 0.8554974, 1.4642863, 1.5830379, 1.0090116, 0.82806206, 1.0546886, 1.165766,
+    ];
 
     #[test]
-    fn test_matmul() {
-        let mut dev = Cpu::default();
-        //let mut dev = Cuda::try_new(0).unwrap();
-        //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
-        let data_a = [
-            0.5086, 0.5234, 0.2684, 0.8075, 0.8437, 0.9951, 0.0774, 0.7539, 0.8894, 0.8119, 0.2693,
-            0.7249,
-        ];
-        let data_b = [0.4651, 0.9106, 0.3360, 0.5534, 0.8092, 0.3827];
-        let a = Tensor::<f32, _>::try_from_data(&[4, 3], &data_a, &dev).unwrap();
-        let b = Tensor::<f32, _>::try_from_data(&[3, 2], &data_b, &dev).unwrap();
+    fn test_matmul_f32_dim2() {
+        let mut dev = TestDevice::default();
+        let a = Tensor::<f32, _>::try_from_data(&[4, 3], &DATA_A, &dev).unwrap();
+        let b = Tensor::<f32, _>::try_from_data(&[3, 2], &DATA_B, &dev).unwrap();
+        let c = a.matmul(&b, &mut dev);
+        assert_abs_diff_eq!(&c.try_get_data().unwrap().as_slice(), &EXPECTED.as_ref());
+    }
+
+    #[test]
+    fn test_matmul_f32_dim3() {
+        let mut dev = TestDevice::default();
+        const CHANNEL_COUNT: usize = 6;
+        let data_a_batched: Vec<f32> = DATA_A
+            .into_iter()
+            .cycle()
+            .take(DATA_A.len() * CHANNEL_COUNT)
+            .collect();
+        let data_b_batched: Vec<f32> = DATA_B
+            .into_iter()
+            .cycle()
+            .take(DATA_B.len() * CHANNEL_COUNT)
+            .collect();
+
+        let a =
+            Tensor::<f32, _>::try_from_data(&[CHANNEL_COUNT, 4, 3], &data_a_batched, &dev).unwrap();
+        let b =
+            Tensor::<f32, _>::try_from_data(&[CHANNEL_COUNT, 3, 2], &data_b_batched, &dev).unwrap();
+        let c = a.matmul(&b, &mut dev);
+        let res_data = c.try_get_data().unwrap();
+        for i in 0..CHANNEL_COUNT {
+            let idx = i * 4 * 2;
+            let channel_slice = &res_data[idx..idx + 4 * 2];
+            assert_abs_diff_eq!(&channel_slice, &EXPECTED.as_ref(),);
+        }
+    }
+
+    #[test]
+    fn test_matmul_f32_dim4() {
+        let mut dev = TestDevice::default();
+        const CHANNEL_COUNT: usize = 3;
+        const BATCH_COUNT: usize = 6;
+        let data_a_batched: Vec<f32> = DATA_A
+            .into_iter()
+            .cycle()
+            .take(DATA_A.len() * CHANNEL_COUNT * BATCH_COUNT)
+            .collect();
+        let data_b_batched: Vec<f32> = DATA_B
+            .into_iter()
+            .cycle()
+            .take(DATA_B.len() * CHANNEL_COUNT * BATCH_COUNT)
+            .collect();
+
+        let a = Tensor::<f32, _>::try_from_data(
+            &[BATCH_COUNT, CHANNEL_COUNT, 4, 3],
+            &data_a_batched,
+            &dev,
+        )
+        .unwrap();
+        let b = Tensor::<f32, _>::try_from_data(
+            &[BATCH_COUNT, CHANNEL_COUNT, 3, 2],
+            &data_b_batched,
+            &dev,
+        )
+        .unwrap();
+        let c = a.matmul(&b, &mut dev);
+        let res_data = c.try_get_data().unwrap();
+        for b in 0..BATCH_COUNT {
+            let base_idx = b * CHANNEL_COUNT * 4 * 2;
+            for c in 0..CHANNEL_COUNT {
+                let idx = base_idx + c * 4 * 2;
+                let channel_slice = &res_data[idx..idx + 4 * 2];
+                assert_abs_diff_eq!(&channel_slice, &EXPECTED.as_ref());
+            }
+        }
+    }
+
+    #[test]
+    fn test_matmul_f16_dim2() {
+        let mut dev = TestDevice::default();
+        let data_a_f16 = DATA_A.map(|x| f16::from_f32(x));
+        let data_b_f16 = DATA_B.map(|x| f16::from_f32(x));
+        let a = Tensor::<f16, _>::try_from_data(&[4, 3], &data_a_f16, &dev).unwrap();
+        let b = Tensor::<f16, _>::try_from_data(&[3, 2], &data_b_f16, &dev).unwrap();
         let c = a.matmul(&b, &mut dev);
         assert_eq!(
             c.try_get_data().unwrap(),
-            [
-                0.62960154, 0.8554974, 1.4642863, 1.5830379, 1.0090116, 0.82806206, 1.0546886,
-                1.165766
-            ]
+            EXPECTED.map(|x| f16::from_f32(x))
         );
+    }
+
+    #[test]
+    fn test_matmul_f16_dim3() {
+        let mut dev = TestDevice::default();
+        const CHANNEL_COUNT: usize = 6;
+        let data_a_f16 = DATA_A.map(|x| f16::from_f32(x));
+        let data_b_f16 = DATA_B.map(|x| f16::from_f32(x));
+        let data_a_batched: Vec<f16> = data_a_f16
+            .into_iter()
+            .cycle()
+            .take(DATA_A.len() * CHANNEL_COUNT)
+            .collect();
+        let data_b_batched: Vec<f16> = data_b_f16
+            .into_iter()
+            .cycle()
+            .take(DATA_B.len() * CHANNEL_COUNT)
+            .collect();
+
+        let a =
+            Tensor::<f16, _>::try_from_data(&[CHANNEL_COUNT, 4, 3], &data_a_batched, &dev).unwrap();
+        let b =
+            Tensor::<f16, _>::try_from_data(&[CHANNEL_COUNT, 3, 2], &data_b_batched, &dev).unwrap();
+        let c = a.matmul(&b, &mut dev);
+        let res_data = c.try_get_data().unwrap();
+        for i in 0..CHANNEL_COUNT {
+            let idx = i * 4 * 2;
+            let channel_slice = &res_data[idx..idx + 4 * 2];
+            assert_eq!(channel_slice, EXPECTED.map(|x| f16::from_f32(x)));
+        }
     }
 }

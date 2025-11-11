@@ -63,3 +63,16 @@ fn compute_pos_angle_vec(i: usize, j: usize, token_len: usize) -> f32 {
     }
     out
 }*/
+
+#[cfg(test)]
+mod tests {
+
+    #[cfg(not(feature = "cuda"))]
+    pub type TestDevice = crate::device::cpu::Cpu;
+
+    #[cfg(feature = "cuda")]
+    pub type TestDevice = crate::device::cuda::Cuda;
+
+    #[cfg(feature = "vulkan")]
+    pub type TestDevice = crate::device::vulkan::Vulkan;
+}

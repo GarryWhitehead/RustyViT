@@ -11,6 +11,12 @@ pub struct Vulkan {
     pub(crate) modules: HashMap<String, ShaderProgram>,
 }
 
+impl Default for Vulkan {
+    fn default() -> Self {
+        Self::new(DeviceType::DiscreteGpu).unwrap()
+    }
+}
+
 impl Vulkan {
     pub fn new(device_type: DeviceType) -> Result<Vulkan, Box<dyn Error>> {
         let driver = Arc::new(RefCell::new(Driver::new(device_type)?));
@@ -62,10 +68,10 @@ impl Vulkan {
 
 impl Drop for Vulkan {
     fn drop(&mut self) {
-        for (_key, prog) in self.modules.iter_mut() {
-            prog.destroy(&self.driver.borrow());
-        }
-        self.driver.borrow_mut().destroy();
+        //for (_key, prog) in self.modules.iter_mut() {
+        //    prog.destroy(&self.driver.borrow());
+        //}
+        //self.driver.borrow_mut().destroy();
     }
 }
 

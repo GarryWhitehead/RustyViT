@@ -52,11 +52,11 @@ impl Resize {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::TestDevice;
+
     #[test]
     fn test_resize_upsample() {
-        let mut dev = crate::device::cpu::Cpu::default();
-        //let dev = Cuda::try_new(0).unwrap();
-        //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+        let mut dev = TestDevice::default();
         let resizer = crate::vision::resize::Resize::new(3, 4);
         let src = &[255, 0, 255, 255];
         let mut img = crate::image::Image::try_from_slice(src, 1, 2, 2, 1, &mut dev).unwrap();

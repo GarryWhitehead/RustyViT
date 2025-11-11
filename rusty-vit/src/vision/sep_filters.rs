@@ -48,11 +48,11 @@ impl<F: FloatType + Sum + DivAssign, T: PixelType, D: DeviceStorage<F> + Conv<T,
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::TestDevice;
+
     #[test]
     fn test_blur() {
-        let mut dev = crate::device::cpu::Cpu::default();
-        //let dev = Cuda::try_new(0).unwrap();
-        //let mut dev = Vulkan::new(DeviceType::DiscreteGpu).unwrap();
+        let mut dev = TestDevice::default();
         let data: Vec<u8> = vec![3u8; 32 * 32];
         let mut blur =
             crate::vision::sep_filters::GaussianBlur::<f32, u8, _>::try_new(2.0, 3, &mut dev)

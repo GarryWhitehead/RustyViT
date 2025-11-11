@@ -21,6 +21,9 @@ pub(crate) trait KernelOp<T: FloatType> {
 impl KernelOp<f32> for Vulkan {
     const SPIRV_NAME: &'static str = "f32_matmul.spv";
 }
+impl KernelOp<half::f16> for Vulkan {
+    const SPIRV_NAME: &'static str = "f16_matmul.spv";
+}
 
 impl<T: FloatType> super::MatMulKernel<T> for Vulkan
 where

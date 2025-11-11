@@ -35,7 +35,6 @@ impl ContextDevice {
                 .instance
                 .get_physical_device_features(physical_device)
         };
-
         let mut coop_mat_features = vk::PhysicalDeviceCooperativeMatrixFeaturesKHR {
             cooperative_matrix: Bool32::from(true),
             ..Default::default()
@@ -61,6 +60,10 @@ impl ContextDevice {
             .vulkan_memory_model(true)
             .shader_float16(true);
 
+        let mut features11 = vk::PhysicalDeviceVulkan11Features::default()
+            .storage_buffer16_bit_access(true)
+            .uniform_and_storage_buffer16_bit_access(true);
+
         let phys_dev_features = vk::PhysicalDeviceFeatures {
             texture_compression_etc2: phys_features.texture_compression_etc2,
             texture_compression_bc: phys_features.texture_compression_bc,
@@ -71,6 +74,7 @@ impl ContextDevice {
         };
         let mut required_features = vk::PhysicalDeviceFeatures2::default()
             .features(phys_dev_features)
+            .push_next(&mut features11)
             .push_next(&mut features12)
             .push_next(&mut robust_info)
             .push_next(&mut coop_mat_features)
@@ -91,11 +95,11 @@ impl ContextDevice {
 
         let compute_queue = unsafe { device.get_device_queue(compute_queue_idx, 0) };
 
-        //let coop_instance =
-        //    ash::khr::cooperative_matrix::Instance::new(&c_instance.entry, &c_instance.instance);
-        //let coop_props = unsafe {
-        //    coop_instance.get_physical_device_cooperative_matrix_properties(physical_device)
-        //};
+        /*let coop_instance =
+            ash::khr::cooperative_matrix::Instance::new(&c_instance.entry, &c_instance.instance);
+        let coop_props = unsafe {
+            coop_instance.get_physical_device_cooperative_matrix_properties(physical_device)
+        };*/
 
         Ok(Self {
             device,
