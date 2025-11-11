@@ -26,6 +26,12 @@ pub struct Cuda {
     pub(crate) kernel_funcs: HashMap<String, CudaFunction>,
 }
 
+impl Default for Cuda {
+    fn default() -> Self {
+        Self::try_new(0).unwrap()
+    }
+}
+
 impl Cuda {
     pub fn try_new(ordinal: usize) -> Result<Cuda, Box<dyn Error>> {
         let ctx = CudaContext::new(ordinal)?;
@@ -134,20 +140,11 @@ trait KernelOp<P: PixelType, F: FloatType> {
 impl KernelOp<u8, f32> for Cuda {
     const KERNEL_NAME: &'static str = "to_tensor_u8_f32_kernel";
 }
-impl KernelOp<u8, f64> for Cuda {
-    const KERNEL_NAME: &'static str = "to_tensor_u8_f64_kernel";
-}
 impl KernelOp<u16, f32> for Cuda {
     const KERNEL_NAME: &'static str = "to_tensor_u16_f32_kernel";
 }
-impl KernelOp<u16, f64> for Cuda {
-    const KERNEL_NAME: &'static str = "to_tensor_u16_f64_kernel";
-}
 impl KernelOp<f32, f32> for Cuda {
     const KERNEL_NAME: &'static str = "to_tensor_f32_f32_kernel";
-}
-impl KernelOp<f32, f64> for Cuda {
-    const KERNEL_NAME: &'static str = "to_tensor_f32_f64_kernel";
 }
 
 impl<P: PixelType, F: FloatType> super::ToTensor<P, Self, F, Self> for Cuda

@@ -39,8 +39,9 @@ impl Buffer {
             BufferType::GpuToHost => {
                 alloc_info.flags = vk_mem::AllocationCreateFlags::HOST_ACCESS_RANDOM
                     | vk_mem::AllocationCreateFlags::MAPPED;
+                alloc_info.usage = vk_mem::MemoryUsage::AutoPreferHost;
             }
-            BufferType::GpuOnly => alloc_info.usage = vk_mem::MemoryUsage::GpuLazy,
+            BufferType::GpuOnly => alloc_info.usage = vk_mem::MemoryUsage::AutoPreferDevice,
         }
 
         let (buffer, allocation) = unsafe {
@@ -103,11 +104,15 @@ impl Buffer {
         }
         .unwrap();
 
-        let host_vec: Vec<T> = vec![T::zero(); self.size as usize];
+        let host_vec: Vec<T> = vec![T::zero(); self.size as usize / size_of::<T>()];
         let mapped = unsafe { driver.vma_allocator.map_memory(&mut self.memory).unwrap() };
 
         unsafe {
-            std::ptr::copy_nonoverlapping(mapped, host_vec.as_ptr() as *mut u8, self.size as usize);
+            std::ptr::copy_nonoverlapping(
+                mapped,
+                host_vec.as_ptr() as *mut u8,
+                self.size as usize / size_of::<T>(),
+            );
             driver.vma_allocator.unmap_memory(&mut self.memory);
             driver
                 .vma_allocator

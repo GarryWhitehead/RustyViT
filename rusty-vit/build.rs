@@ -1,10 +1,11 @@
 #[cfg(feature = "vulkan")]
 use shaderc::ShaderKind;
+
 #[cfg(feature = "vulkan")]
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, fs, path::Path};
+
+#[cfg(any(feature = "vulkan", feature = "cuda"))]
+use std::path::PathBuf;
 
 fn main() {
     #[cfg(feature = "cuda")]
@@ -104,6 +105,7 @@ fn to_rust_type(ty: &str) -> &str {
     match ty {
         "uint8_t" => "u8",
         "uint16_t" => "u16",
+        "float16_t" => "f16",
         "float" => "f32",
         "double" => "f64",
         _ => panic!("Unknown type {ty}"),
@@ -154,25 +156,88 @@ fn build_vulkan() {
     });
 
     // Tensor shaders.
-    let tensor_glsl_paths: Vec<PathBuf> = glob::glob("shaders/vulkan/tensor/*.glsl")
-        .unwrap()
-        .map(|path| path.unwrap())
-        .collect();
-    tensor_glsl_paths
-        .iter()
-        .for_each(|path| println!("cargo:rerun-if-changed={}", path.display()));
+    struct DefPair {
+        def: String,
+        value: String,
+    }
+    struct Entry {
+        output_name: String,
+        defs: Vec<DefPair>,
+    }
 
-    tensor_glsl_paths.iter().for_each(|path| {
-        [("float", "float32_t")].map(|ty| {
-            let filename = Path::new(path).file_name().unwrap().to_str().unwrap();
+    let mut shader_map = HashMap::<String, Vec<Entry>>::new();
+    shader_map.insert(
+        "matmul".to_string(),
+        vec![Entry {
+            output_name: "matmul_fp16".to_string(),
+            defs: vec![
+                DefPair {
+                    def: "FLOAT_TYPE".to_string(),
+                    value: "float16_t".to_string(),
+                },
+                DefPair {
+                    def: "COOP_FLOAT_TYPE".to_string(),
+                    value: "float16_t".to_string(),
+                },
+            ],
+        }],
+    );
+    shader_map.insert(
+        "cast".to_string(),
+        vec![
+            Entry {
+                output_name: "cast_fp16_to_fp32".to_string(),
+                defs: vec![
+                    DefPair {
+                        def: "TYPE_A".to_string(),
+                        value: "float16_t".to_string(),
+                    },
+                    DefPair {
+                        def: "TYPE_B".to_string(),
+                        value: "float".to_string(),
+                    },
+                ],
+            },
+            Entry {
+                output_name: "cast_fp32_to_fp16".to_string(),
+                defs: vec![
+                    DefPair {
+                        def: "TYPE_A".to_string(),
+                        value: "float".to_string(),
+                    },
+                    DefPair {
+                        def: "TYPE_B".to_string(),
+                        value: "float16_t".to_string(),
+                    },
+                ],
+            },
+        ],
+    );
+
+    shader_map.iter().for_each(|entry| {
+        println!(
+            "cargo:rerun-if-changed=shaders/vulkan/tensor/{}.glsl",
+            entry.0
+        )
+    });
+
+    shader_map.iter().for_each(|entries| {
+        entries.1.iter().for_each(|entry| {
+            let shader_path = format!("shaders/vulkan/tensor/{}.glsl", entries.0);
+            let filename = Path::new(&shader_path)
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap();
             let mut options = shaderc::CompileOptions::new().unwrap();
-            options.add_macro_definition("FLOAT_TYPE", Some(ty.0));
-            options.add_macro_definition("COOP_FLOAT_TYPE", Some(ty.1));
+            for macro_def in entry.defs.iter() {
+                options.add_macro_definition(&macro_def.def, Some(&macro_def.value));
+            }
             options.set_target_env(
                 shaderc::TargetEnv::Vulkan,
                 shaderc::EnvVersion::Vulkan1_3 as u32,
             );
-            let glsl_src = fs::read_to_string(&path).unwrap();
+            let glsl_src = fs::read_to_string(&shader_path).unwrap();
             let artifact = compiler
                 .compile_into_spirv(
                     &glsl_src,
@@ -183,12 +248,7 @@ fn build_vulkan() {
                 )
                 .unwrap();
             fs::write(
-                format!(
-                    "{}/{}_{}.spv",
-                    out_dir,
-                    to_rust_type(ty.0),
-                    Path::new(filename).file_stem().unwrap().to_str().unwrap()
-                ),
+                format!("{}/{}.spv", out_dir, entry.output_name),
                 artifact.as_binary_u8(),
             )
             .unwrap();

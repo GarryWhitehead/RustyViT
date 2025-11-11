@@ -1,10 +1,11 @@
 use crate::device::DeviceStorage;
-use crate::tensor::matmul::MatMulKernel;
+use crate::tensor::{cast::CastKernel, matmul::MatMulKernel};
 use crate::type_traits::FloatType;
 #[cfg(feature = "cuda")]
 use cudarc::driver::{DeviceRepr, ValidAsZeroBits};
 use std::error::Error;
 
+mod cast;
 pub mod convolution;
 pub mod layer_norm;
 pub mod matmul;
@@ -30,9 +31,9 @@ impl<T: FloatType, S: DeviceStorage<T>> Tensor<T, S> {
         if shape.is_empty() {
             return Err("shape cannot be empty".into());
         }
-
+        let sz = shape.iter().copied().reduce(|a, b| a * b).unwrap();
         Ok(Self {
-            data: dev.try_alloc(Self::total_size(shape))?,
+            data: dev.try_alloc(sz)?,
             device: dev.clone(),
             shape: shape.to_vec(),
             strides: Self::compute_strides(shape),
@@ -43,7 +44,8 @@ impl<T: FloatType, S: DeviceStorage<T>> Tensor<T, S> {
         if shape.is_empty() {
             return Err("shape cannot be empty".into());
         }
-        if values.len() != Self::total_size(shape) {
+        let sz = shape.iter().copied().reduce(|a, b| a * b).unwrap();
+        if values.len() != sz {
             return Err("Shape size doesn't match values length".into());
         }
 
@@ -64,8 +66,8 @@ impl<T: FloatType, S: DeviceStorage<T>> Tensor<T, S> {
         strides
     }
 
-    pub fn total_size(shape: &[usize]) -> usize {
-        shape.iter().copied().reduce(|a, b| a * b).unwrap()
+    pub fn total_size(&self) -> usize {
+        self.shape.iter().copied().reduce(|a, b| a * b).unwrap()
     }
 
     pub fn try_get_data(&self) -> Result<Vec<T>, Box<dyn Error>> {
@@ -87,5 +89,14 @@ impl<T: FloatType, D: MatMulKernel<T>> Tensor<T, D> {
         }
 
         dev.matmul(self, rhs)
+    }
+}
+
+impl<T: FloatType, D: DeviceStorage<T>> Tensor<T, D> {
+    pub fn cast<O: FloatType>(&self, dev: &mut D) -> Tensor<O, D>
+    where
+        D: CastKernel<T, O>,
+    {
+        dev.cast(self)
     }
 }
