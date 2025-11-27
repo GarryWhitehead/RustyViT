@@ -56,10 +56,13 @@ fn build_cuda() {
     println!("cargo:rustc-link-lib=cuda");
     println!("cargo:rustc-link-lib=cudart");
 
+    println!("cargo:rerun-if-changed=/shaders/cuda/vision");
+    println!("cargo:rerun-if-changed=/shaders/cuda/tensor");
+
     // Glob for all .cu files.
     // TODO: Will need to do this for .cuh files when there are any.
     let out_dir = std::env::var("OUT_DIR").unwrap();
-    let kernel_paths: Vec<PathBuf> = glob::glob("src/**/*.cu")
+    let kernel_paths: Vec<PathBuf> = glob::glob("shaders/cuda/**/*.cu")
         .unwrap()
         .map(|path| path.unwrap())
         .collect();

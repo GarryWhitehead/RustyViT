@@ -9,7 +9,7 @@ use cudarc::cublas::{CudaBlas, Gemm, StridedBatchedConfig};
 use cudarc::driver::{CudaView, CudaViewMut, DevicePtr};
 use std::ffi::{c_int, c_longlong};
 
-trait MatMul<T: FloatType> {
+pub(crate) trait MatMul<T: FloatType> {
     fn gemm(
         &self,
         m: usize,
@@ -21,7 +21,7 @@ trait MatMul<T: FloatType> {
     );
 }
 
-trait BatchedMatMul<T: FloatType> {
+pub(crate) trait BatchedMatMul<T: FloatType> {
     fn batched_gemm(
         &self,
         m: usize,

@@ -1,8 +1,8 @@
-mod matmul_cpu;
+pub(crate) mod matmul_cpu;
 #[cfg(feature = "cuda")]
-mod matmul_cu;
+pub(crate) mod matmul_cu;
 #[cfg(feature = "vulkan")]
-mod matmul_vk;
+pub(crate) mod matmul_vk;
 
 use crate::device::DeviceStorage;
 use crate::tensor::Tensor;

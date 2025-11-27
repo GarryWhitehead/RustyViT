@@ -10,6 +10,7 @@ rusty-vk = { workspace = true, optional = true }
 log = { workspace = true }
 rayon = { workspace = true, optional = true }
 rand = { workspace = true }
+rand_distr = "0.5.1"
 num = { workspace = true }
 cudarc = { workspace = true, optional = true, features = ["cublas", "nvrtc", "cuda-11080", "std", "dynamic-linking", "f16"] }
 gemm = "0.18.2"

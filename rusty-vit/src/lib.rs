@@ -73,6 +73,6 @@ mod tests {
     #[cfg(feature = "cuda")]
     pub type TestDevice = crate::device::cuda::Cuda;
 
-    #[cfg(feature = "vulkan")]
-    pub type TestDevice = crate::device::vulkan::Vulkan;
+    //#[cfg(feature = "vulkan")]
+    //pub type TestDevice = crate::device::vulkan::Vulkan;
 }
