@@ -2,10 +2,9 @@ use crate::device::cpu::Cpu;
 use crate::tensor::Tensor;
 use crate::type_traits::FloatType;
 
-trait MatMul<T: FloatType> {
+pub trait MatMul<T: FloatType> {
     #[allow(clippy::too_many_arguments)]
     fn gemm_matmul(
-        &self,
         m: usize,
         k: usize,
         n: usize,
@@ -21,7 +20,6 @@ trait MatMul<T: FloatType> {
 impl MatMul<f32> for Cpu {
     #[allow(clippy::too_many_arguments)]
     fn gemm_matmul(
-        &self,
         m: usize,
         k: usize,
         n: usize,
@@ -61,7 +59,6 @@ impl MatMul<f32> for Cpu {
 impl MatMul<half::f16> for Cpu {
     #[allow(clippy::too_many_arguments)]
     fn gemm_matmul(
-        &self,
         m: usize,
         k: usize,
         n: usize,
@@ -130,7 +127,7 @@ where
                     let c_end = c_start + out.strides[1];
                     let c_slice = &mut out.data[c_start..c_end];
 
-                    self.gemm_matmul(
+                    Self::gemm_matmul(
                         m,
                         k,
                         n,
@@ -160,7 +157,7 @@ where
                 let c_end = c_start + out.strides[0];
                 let c_slice = &mut out.data[c_start..c_end];
 
-                self.gemm_matmul(
+                Self::gemm_matmul(
                     m,
                     k,
                     n,
@@ -175,7 +172,7 @@ where
         }
         // Matrix-matrix multiplication
         else {
-            self.gemm_matmul(
+            Self::gemm_matmul(
                 m,
                 k,
                 n,
