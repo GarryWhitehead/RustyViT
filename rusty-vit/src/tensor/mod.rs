@@ -9,6 +9,7 @@ use rand::distr::uniform::SampleUniform;
 use rand_distr::StandardNormal;
 use std::error::Error;
 
+pub mod binary_op;
 mod cast;
 pub mod convolution;
 pub mod distribution;
