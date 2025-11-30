@@ -17,6 +17,7 @@ pub mod layer_norm;
 pub mod matmul;
 pub mod matrix_funcs;
 mod tensor_cpu;
+pub mod unary_op;
 
 #[cfg(feature = "cuda")]
 pub trait SafeZeros: ValidAsZeroBits + DeviceRepr {}

@@ -7,21 +7,6 @@ pub mod vision;
 
 use num::pow::Pow;
 
-const SQRT_2_OVER_PI: f32 = 0.797_884_6;
-
-#[allow(dead_code)]
-fn compute_gelu(input: &[f32], size: u32) -> Vec<f32> {
-    let mut result: Vec<f32> = vec![0.0; size as usize];
-    for idx in 0..size as usize {
-        let x = input[idx];
-        // Approximated GELU version - there seem to be a few versions circulating - this is the one
-        // used by OpenAI.
-        result[idx] =
-            0.5 * x * (1.0 + f32::tanh(SQRT_2_OVER_PI * (x + 0.044715 * f32::powf(x, 3.0))));
-    }
-    result
-}
-
 #[allow(dead_code)]
 fn compute_max(v: &[f32]) -> f32 {
     *v.iter().max_by(|a, b| a.total_cmp(b)).unwrap()
@@ -40,11 +25,6 @@ fn compute_softmax(x: &mut [f32], size: u32) {
     // Normalise values.
     //x.iter().map(|value| value / sum).collect();
 }*/
-
-#[allow(dead_code)]
-fn compute_kaiming_uniform(_x: &[f32], _size: u32, negative_slope: f32) {
-    let _gain = f32::sqrt(2.0 / (1.0 + f32::powf(negative_slope, 3.0)));
-}
 
 #[allow(dead_code)]
 fn compute_pos_angle_vec(i: usize, j: usize, token_len: usize) -> f32 {
