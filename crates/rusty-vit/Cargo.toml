@@ -1,0 +1,26 @@
+[package]
+name = "rusty-vit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage = "https://github.com/RustyViT"
+
+[dependencies]
+rvit-core = { workspace = true }
+rvit-tensor = { workspace = true }
+rvit-vision = { workspace = true }
+rvit-device = { workspace = true }
+num = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+half = { workspace = true }
+
+[features]
+default = ["cpu"]
+cpu = ["rvit-device/cpu"]
+cuda = ["rvit-device/cuda"]
+vulkan = ["rvit-device/vulkan"]
+
+
+
+

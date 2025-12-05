@@ -1,0 +1,18 @@
+[package]
+name = "rvit-nn"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88.0"
+homepage = "https://github.com/RustyViT"
+
+[dependencies]
+log = { workspace = true }
+num = { workspace = true }
+rayon = { workspace = true, optional = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+
+[dev-dependencies]
+approxim = { version = "0.6.6", features = ["array_impl"] }
+
+

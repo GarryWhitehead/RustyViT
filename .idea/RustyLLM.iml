@@ -9,6 +9,20 @@
       <sourceFolder url="file://$MODULE_DIR$/examples/image_processing/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rusty-vit/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rusty-vk/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rusty-vit/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-cpu/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-cuda/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-device/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-device/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-image/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-loader/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-nn/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-tensor/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-tests/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-vision/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-vk-backend/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/rvit-vulkan/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

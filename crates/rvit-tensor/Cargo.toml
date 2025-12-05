@@ -1,0 +1,26 @@
+[package]
+name = "rvit-tensor"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage = "https://github.com/RustyViT"
+
+[features]
+default = ["cpu"]
+cpu = ["rvit-device/cpu"]
+cuda = ["rvit-device/cuda"]
+vulkan = ["rvit-device/vulkan"]
+
+[dependencies]
+rvit-core = { workspace = true }
+rvit-device = { workspace = true, optional = true }
+log = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+num = { workspace = true }
+half = { workspace = true }
+
+[dev-dependencies]
+approxim = { version = "0.6.6", features = ["array_impl"] }
+
+

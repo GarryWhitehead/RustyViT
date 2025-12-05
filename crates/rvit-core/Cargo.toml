@@ -1,0 +1,21 @@
+[package]
+name = "rvit-core"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88.0"
+homepage = "https://github.com/RustyViT"
+
+[features]
+default = ["cpu"]
+cpu = []
+cuda = ["cudarc"]
+
+[dependencies]
+num = { workspace = true }
+half = { workspace = true }
+cudarc = { workspace = true, optional = true, features = ["cublas", "nvrtc", "cuda-11080", "std", "dynamic-linking", "f16"] }
+
+
+
+
+

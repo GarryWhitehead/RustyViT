@@ -8,26 +8,54 @@ keywords = ["AI", "Vision", "VIT", "VisionTransformer"]
 
 [workspace]
 members = [
-    "rusty-vit",
-    "rusty-vk",
-    "examples/*",
-    "benches"
+    "crates/*",
+    "benches/*",
+    "examples/*"
 ]
 resolver = "2"
 
 [workspace.dependencies.rusty-vit]
 version = "0.1.0"
-path = "rusty-vit"
+path = "crates/rusty-vit"
 
-[workspace.dependencies.rusty-vk]
+[workspace.dependencies.rvit-nn]
 version = "0.1.0"
-path = "rusty-vk"
+path = "crates/rvit-nn"
+
+[workspace.dependencies.rvit-tensor]
+version = "0.1.0"
+path = "crates/rvit-tensor"
+
+[workspace.dependencies.rvit-vision]
+version = "0.1.0"
+path = "crates/rvit-vision"
+
+[workspace.dependencies.rvit-image]
+version = "0.1.0"
+path = "crates/rvit-image"
+
+[workspace.dependencies.rvit-vk-backend]
+version = "0.1.0"
+path = "crates/rvit-vk-backend"
+
+[workspace.dependencies.rvit-loader]
+version = "0.1.0"
+path = "crates/rvit-loader"
+
+[workspace.dependencies.rvit-core]
+version = "0.1.0"
+path = "crates/rvit-core"
+
+[workspace.dependencies.rvit-device]
+version = "0.1.0"
+path = "crates/rvit-device"
 
 [workspace.dependencies]
 log = "0.4"
 rayon = "1.11.0"
 clap = "4.5.45"
 rand = "0.9.2"
+rand_distr = "0.5.1"
 criterion = { version = "0.5", features = ["html_reports"] }
 num = "0.4.3"
 cudarc = { version = "0.17.3", default-features = false }
@@ -36,6 +64,13 @@ show-image = "0.14.1"
 vk-mem = "0.5.0"
 ash = "0.38.0"
 env_logger = "0.11.8"
+half = "2.7.1"
+gemm = "0.18.2"
+
+proc-macro2 = "1.0.103"
+quote = "1.0.42"
+syn = "2.0.111"
+
 
 
 

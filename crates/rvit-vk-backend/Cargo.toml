@@ -1,0 +1,17 @@
+[package]
+name = "rvit-vk-backend"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88.0"
+homepage = "https://github.com/RustyViT"
+
+[dependencies]
+log = { workspace = true }
+ash = { workspace = true, features = ["loaded", "debug", "std"] }
+vk-mem = { workspace = true }
+env_logger = { workspace = true }
+num = { workspace = true }
+renderdoc = "0.12.1"
+# using forked spirq due to missing co-operative matrix types.
+spirq = { git = "https://github.com/GarryWhitehead/spirq-rs.git", rev = "3d151f043549c47889fcfa73802086592eedecdc" }
+

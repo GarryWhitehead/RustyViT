@@ -1,9 +1,4 @@
 use image::{EncodableLayout, ImageReader};
-use rusty_vit::device::cpu::Cpu;
-#[cfg(feature = "cuda")]
-use rusty_vit::device::cuda::Cuda;
-#[cfg(feature = "vulkan")]
-use rusty_vit::device::vulkan::Vulkan;
 use rusty_vit::image::Image;
 use rusty_vit::vision::sep_filters::GaussianBlur;
 use show_image::event;

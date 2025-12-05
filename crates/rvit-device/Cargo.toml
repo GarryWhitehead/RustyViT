@@ -1,0 +1,33 @@
+[package]
+name = "rvit-device"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage = "https://github.com/RustyViT"
+
+[features]
+default = ["cpu"]
+cpu = ["gemm/f16", "gemm/default", "rayon", "rvit-core/cpu"]
+cuda = ["cudarc", "rvit-core/cuda"]
+vulkan = ["rvit-vk-backend"]
+
+[dependencies]
+rvit-core = { workspace = true }
+rvit-vk-backend = { workspace = true, optional = true }
+
+log = { workspace = true }
+rand = { workspace = true }
+cudarc = { workspace = true, optional = true, features = ["cublas", "nvrtc", "cuda-11080", "std", "dynamic-linking", "f16"] }
+half = { workspace = true }
+num = { workspace = true }
+gemm = { workspace = true, optional = true }
+rayon = { workspace = true, optional = true }
+
+[build-dependencies]
+glob = "0.3.3"
+shaderc = "0.10.1"
+
+[dev-dependencies]
+approxim = { version = "0.6.6", features = ["array_impl"] }
+
+

@@ -1,0 +1,17 @@
+[package]
+name = "rvit-loader"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88.0"
+homepage = "https://github.com/RustyViT"
+
+[dependencies]
+rvit-core = { workspace = true }
+rvit-image = { workspace = true }
+log = { workspace = true }
+rayon = { workspace = true }
+num = { workspace = true }
+rand = { workspace = true }
+
+
+

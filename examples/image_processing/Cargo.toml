@@ -7,19 +7,13 @@ publish = false
 
 [[bin]]
 name = "image_processing"
-path = "src/main.rs"
+path = "../general_vit/src/main.rs"
 test = false
 bench = false
 doc = false
 
 [dependencies]
-rusty-vit = { workspace = true }
-rusty-vk = { workspace = true }
 show-image = { workspace = true }
 image = { workspace = true }
 
-[features]
-default = ["cpu"]
-cpu = ["rusty-vit/cpu"]
-cuda = ["rusty-vit/cuda"]
-vulkan = ["rusty-vit/vulkan"]
+
