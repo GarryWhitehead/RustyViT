@@ -4,9 +4,9 @@ use rayon::iter::IndexedParallelIterator;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSliceMut;
-use rvit_core::pixel_traits::PixelType;
-use rvit_core::storage::DeviceStorage;
-use rvit_image::image::Image;
+use rvit_core::element_traits::Elem;
+use rvit_core::memory::storage::DeviceStorage;
+use rvit_tensor::tensor::Tensor;
 use std::error::Error;
 use std::marker::PhantomData;
 
@@ -18,12 +18,12 @@ pub enum DataType {
     TRAINING,
 }
 
-pub struct VitData<P: PixelType, D: DeviceStorage<P>> {
-    pub images: Image<P, D>,
+pub struct VitData<P: Elem, D: Device> {
+    pub images: Tensor<P, D>,
     pub labels: D::Vec,
 }
 
-impl<P: PixelType, D: DeviceStorage<P>> VitData<P, D> {
+impl<P: Elem, D: DeviceStorage<P>> VitData<P, D> {
     pub fn try_new(
         width: usize,
         height: usize,
@@ -32,20 +32,20 @@ impl<P: PixelType, D: DeviceStorage<P>> VitData<P, D> {
         dev: &D,
     ) -> Result<VitData<P, D>, Box<dyn Error>> {
         Ok(VitData {
-            images: Image::try_new(width, height, channels, count, dev)?,
+            images: Tensor::try_new(&[count, channels, height, width], dev)?,
             labels: dev.try_alloc(count)?,
         })
     }
 }
 
 pub trait DataSetReader {
-    type Type: PixelType + cifar::DataSetBytes;
+    type Type: Elem + cifar::DataSetBytes;
 
     fn read_bytes_from_buffer(file: &str, out: &[Self::Type]) -> Result<(), Box<dyn Error>>;
 }
 
 pub trait DataSetFormat {
-    type Type: PixelType + Sized;
+    type Type: Elem + Sized;
     const IMAGE_FORMAT_TOTAL_IMAGE_SIZE: usize;
     const IMAGE_FORMAT_IMAGES_PER_FILE: usize;
     const IMAGE_FORMAT_DIM: usize;
@@ -121,7 +121,7 @@ impl<F: DataSetFormat<Type = u8>> DataLoader<F> {
     pub fn next_batch<D: DeviceStorage<F::Type>>(
         &mut self,
         dev: &D,
-    ) -> Option<(D::Vec, Image<F::Type, D>)> {
+    ) -> Option<(D::Vec, Tensor<F::Type, D>)> {
         if self.current >= self.indices.len() {
             return None;
         }
@@ -136,15 +136,17 @@ impl<F: DataSetFormat<Type = u8>> DataLoader<F> {
     fn load_batch<D: DeviceStorage<F::Type>>(
         &mut self,
         dev: &D,
-    ) -> Result<(D::Vec, Image<F::Type, D>), Box<dyn Error>> {
+    ) -> Result<(D::Vec, Tensor<F::Type, D>), Box<dyn Error>> {
         let stride = F::IMAGE_FORMAT_DIM * F::IMAGE_FORMAT_DIM * F::IMAGE_FORMAT_CHANNELS;
         let chunk_size = F::IMAGE_FORMAT_LABEL_SIZE + stride;
 
         let mut labels = vec![0u8; self.batch_size];
         let batch_i = &self.indices[self.current..self.current + self.batch_size];
 
-        let image: Image<F::Type, D> =
-            Image::try_new(self.batch_size, self.width, self.height, self.channels, dev)?;
+        let image: Tensor<F::Type, D> = Tensor::try_new(
+            &[self.batch_size, self.channels, self.height, self.width],
+            dev,
+        )?;
 
         // Load the images into the temp workspace to begin with; this is to reduce the
         // number of uploads to the device in the case of CUDA/Vulkan.

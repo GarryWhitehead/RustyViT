@@ -1,0 +1,17 @@
+[package]
+name = "rvit-testgen"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage = "https://github.com/RustyViT/crates/rvit-testgen"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.103"
+syn = "2.0.111"
+quote = "1.0.42"
+
+
+

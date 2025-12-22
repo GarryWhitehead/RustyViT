@@ -403,9 +403,9 @@ checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
 
 [[package]]
 name = "bytemuck"
-version = "1.23.2"
+version = "1.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3995eaeebcdf32f91f980d360f78732ddc061097ab4e39991ae7a6ace9194677"
+checksum = "1fbdf580320f38b612e485521afda1ee26d10cc9884efaaa750d383e13e3c5f4"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -1033,9 +1033,9 @@ dependencies = [
 
 [[package]]
 name = "gemm"
-version = "0.18.2"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab96b703d31950f1aeddded248bc95543c9efc7ac9c4a21fda8703a83ee35451"
+checksum = "aa0673db364b12263d103b68337a68fbecc541d6f6b61ba72fe438654709eacb"
 dependencies = [
  "dyn-stack",
  "gemm-c32",
@@ -1053,9 +1053,9 @@ dependencies = [
 
 [[package]]
 name = "gemm-c32"
-version = "0.18.2"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6db9fd9f40421d00eea9dd0770045a5603b8d684654816637732463f4073847"
+checksum = "086936dbdcb99e37aad81d320f98f670e53c1e55a98bee70573e83f95beb128c"
 dependencies = [
  "dyn-stack",
  "gemm-common",
@@ -1068,9 +1068,9 @@ dependencies = [
 
 [[package]]
 name = "gemm-c64"
-version = "0.18.2"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfcad8a3d35a43758330b635d02edad980c1e143dc2f21e6fd25f9e4eada8edf"
+checksum = "20c8aeeeec425959bda4d9827664029ba1501a90a0d1e6228e48bef741db3a3f"
 dependencies = [
  "dyn-stack",
  "gemm-common",
@@ -1083,9 +1083,9 @@ dependencies = [
 
 [[package]]
 name = "gemm-common"
-version = "0.18.2"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a352d4a69cbe938b9e2a9cb7a3a63b7e72f9349174a2752a558a8a563510d0f3"
+checksum = "88027625910cc9b1085aaaa1c4bc46bb3a36aad323452b33c25b5e4e7c8e2a3e"
 dependencies = [
  "bytemuck",
  "dyn-stack",
@@ -1104,9 +1104,9 @@ dependencies = [
 
 [[package]]
 name = "gemm-f16"
-version = "0.18.2"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cff95ae3259432f3c3410eaa919033cd03791d81cebd18018393dc147952e109"
+checksum = "e3df7a55202e6cd6739d82ae3399c8e0c7e1402859b30e4cb780e61525d9486e"
 dependencies = [
  "dyn-stack",
  "gemm-common",
@@ -1122,9 +1122,9 @@ dependencies = [
 
 [[package]]
 name = "gemm-f32"
-version = "0.18.2"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc8d3d4385393304f407392f754cd2dc4b315d05063f62cf09f47b58de276864"
+checksum = "02e0b8c9da1fbec6e3e3ab2ce6bc259ef18eb5f6f0d3e4edf54b75f9fd41a81c"
 dependencies = [
  "dyn-stack",
  "gemm-common",
@@ -1137,9 +1137,9 @@ dependencies = [
 
 [[package]]
 name = "gemm-f64"
-version = "0.18.2"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35b2a4f76ce4b8b16eadc11ccf2e083252d8237c1b589558a49b0183545015bd"
+checksum = "056131e8f2a521bfab322f804ccd652520c79700d81209e9d9275bbdecaadc6a"
 dependencies = [
  "dyn-stack",
  "gemm-common",
@@ -2232,17 +2232,26 @@ dependencies = [
 
 [[package]]
 name = "pulp"
-version = "0.21.5"
+version = "0.22.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96b86df24f0a7ddd5e4b95c94fc9ed8a98f1ca94d3b01bdce2824097e7835907"
+checksum = "2e205bb30d5b916c55e584c22201771bcf2bad9aabd5d4127f38387140c38632"
 dependencies = [
  "bytemuck",
  "cfg-if",
  "libm",
  "num-complex",
+ "paste",
+ "pulp-wasm-simd-flag",
+ "raw-cpuid",
  "reborrow",
  "version_check",
 ]
+
+[[package]]
+name = "pulp-wasm-simd-flag"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40e24eee682d89fb193496edf918a7f407d30175b2e785fe057e4392dfd182e0"
 
 [[package]]
 name = "pxfm"
@@ -2531,9 +2540,8 @@ name = "rusty-vit"
 version = "0.1.0"
 dependencies = [
  "half",
- "num",
- "rand",
- "rand_distr",
+ "num-traits",
+ "paste",
  "rvit-core",
  "rvit-device",
  "rvit-tensor",
@@ -2544,16 +2552,18 @@ dependencies = [
 name = "rvit-core"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "cudarc",
  "half",
  "num",
+ "num-traits",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
 name = "rvit-device"
 version = "0.1.0"
 dependencies = [
- "approxim",
  "cudarc",
  "gemm",
  "glob",
@@ -2568,25 +2578,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "rvit-image"
-version = "0.1.0"
-dependencies = [
- "log",
- "num",
- "rvit-core",
- "rvit-device",
-]
-
-[[package]]
 name = "rvit-loader"
 version = "0.1.0"
 dependencies = [
- "log",
  "num",
  "rand",
  "rayon",
  "rvit-core",
- "rvit-image",
+ "rvit-tensor",
 ]
 
 [[package]]
@@ -2605,26 +2604,35 @@ dependencies = [
 name = "rvit-tensor"
 version = "0.1.0"
 dependencies = [
- "approxim",
  "half",
- "log",
- "num",
+ "num-traits",
  "rand",
  "rand_distr",
  "rvit-core",
  "rvit-device",
+ "rvit-testgen",
+]
+
+[[package]]
+name = "rvit-testgen"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.111",
 ]
 
 [[package]]
 name = "rvit-vision"
 version = "0.1.0"
 dependencies = [
- "approxim",
- "log",
+ "num-traits",
+ "paste",
  "rand",
  "rvit-core",
  "rvit-device",
- "rvit-image",
+ "rvit-tensor",
+ "rvit-testgen",
 ]
 
 [[package]]

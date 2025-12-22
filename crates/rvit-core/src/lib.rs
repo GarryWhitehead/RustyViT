@@ -1,4 +1,8 @@
-pub mod pixel_traits;
-pub mod storage;
+pub mod approx;
+pub mod device;
+pub mod element_traits;
+pub mod kernel_ops;
+pub mod memory;
 pub mod tensor;
-pub mod type_traits;
+pub mod tensor_ops;
+pub mod vision;

@@ -1,13 +1,15 @@
-use crate::distribution;
+use crate::basic_ops::BasicOps;
 use crate::distribution::DistributionMethod;
-use crate::tensor::Tensor;
+use crate::tensor::{Float, Integer, Tensor, TensorType};
+use crate::{Device, distribution};
 use rand::distr::Distribution;
 use rand::distr::uniform::SampleUniform;
 use rand_distr::StandardNormal;
-use rvit_core::storage::DeviceStorage;
+use rvit_core::element_traits::DataElem;
+use rvit_core::memory::storage::DeviceStorage;
 use rvit_core::tensor::compute_strides;
-use rvit_core::type_traits::FloatType;
-use rvit_device::op_traits::{Conv2dKernel, ConvConvertKernel};
+use rvit_device::Device;
+use rvit_device::tensor::op_traits::{Conv2dKernel, ConvConvertKernel};
 use std::error::Error;
 use std::marker::PhantomData;
 
@@ -18,7 +20,7 @@ pub enum ConvShape {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct Conv2d<T: FloatType> {
+pub struct Conv2d<T: TensorType, D: Device> {
     pub out_channels: usize,
     pub groups: usize,
     pub stride: usize,
@@ -26,16 +28,17 @@ pub struct Conv2d<T: FloatType> {
     pub kernel_size: usize,
     pub conv_shape: ConvShape,
     pub dist_method: Option<DistributionMethod>,
-    phantom_data: PhantomData<T>,
+    pub _ty: PhantomData<T>,
+    pub _device: PhantomData<D>,
 }
 
-pub struct ConvInput<T: FloatType, S: DeviceStorage<T>> {
+pub struct ConvInput<T: TensorType, D: Device> {
     pub out_width: usize,
     pub out_height: usize,
     pub groups: usize,
     pub stride: usize,
     pub padding: usize,
-    pub filters: Tensor<T, S>,
+    pub filters: Tensor<T, D>,
     pub batch_size: usize,
     pub in_channels: usize,
     pub in_width: usize,
@@ -43,7 +46,7 @@ pub struct ConvInput<T: FloatType, S: DeviceStorage<T>> {
     pub conv_shape: ConvShape,
 }
 
-impl<T: FloatType> Default for Conv2d<T> {
+impl<T: TensorType, D: Device> Default for Conv2d<T, D> {
     fn default() -> Self {
         Self {
             out_channels: 1,
@@ -53,33 +56,25 @@ impl<T: FloatType> Default for Conv2d<T> {
             kernel_size: 2,
             conv_shape: ConvShape::Nchw,
             dist_method: None,
-            phantom_data: PhantomData,
+            _ty: PhantomData,
+            _device: PhantomData,
         }
     }
 }
 
-impl<T: FloatType> Conv2d<T>
+impl<D: Device> Conv2d<Float, D>
 where
-    StandardNormal: Distribution<T>,
-    T: SampleUniform,
+    StandardNormal: Distribution<D::FloatElem>,
+    D::FloatElem: SampleUniform,
 {
-    pub fn init<S: DeviceStorage<T>>(
-        &self,
-        x: &Tensor<T, S>,
-        dev: &S,
-    ) -> Result<ConvInput<T, S>, Box<dyn Error>> {
-        if self.stride < 1 {
-            panic!("The stride must be greater than zero");
-        }
-
+    pub fn init(
+        &mut self,
+        x: &Tensor<Float, D>,
+        dev: &mut D::Storage,
+    ) -> Result<ConvInput<Float, D>, Box<dyn Error>> {
         let (batch_size, in_channels, in_height, in_width) =
             (x.shape[0], x.shape[1], x.shape[2], x.shape[3]);
-
-        if !in_channels.is_multiple_of(self.groups)
-            || !self.out_channels.is_multiple_of(self.groups)
-        {
-            panic!("The group size must be a multiple of the in/out channel size");
-        }
+        Self::validate(in_channels, self.out_channels, self.stride, self.groups);
 
         let out_height =
             Self::compute_out_size(in_height, self.padding, self.kernel_size, self.stride);
@@ -92,14 +87,8 @@ where
             self.kernel_size,
             self.kernel_size,
         ];
-
-        let fan_in = self.kernel_size * self.kernel_size * in_channels;
-        let fan_out = self.kernel_size * self.kernel_size * self.out_channels;
-        let f_size =
-            self.out_channels * (in_channels / self.groups) * self.kernel_size * self.kernel_size;
-        let f_buffer = Self::init_weights(f_size, fan_in, fan_out, self.dist_method);
-
-        let filters: Tensor<T, S> = Tensor::try_from_data(&f_shape, &f_buffer, dev).unwrap();
+        let f_buffer = Self::compute_weights::<D::FloatElem>(self, in_channels);
+        let filters = Tensor::<Float, _>::from_array(&f_shape, &f_buffer, dev);
 
         Ok(ConvInput {
             out_width,
@@ -115,18 +104,84 @@ where
             conv_shape: self.conv_shape,
         })
     }
+}
 
+impl<D: Device> Conv2d<Integer, D>
+where
+    StandardNormal: Distribution<D::IntElem>,
+    D::IntElem: SampleUniform,
+{
+    pub fn init(
+        &mut self,
+        x: &Tensor<Integer, D>,
+        dev: &mut D::Storage,
+    ) -> Result<ConvInput<Integer, D>, Box<dyn Error>> {
+        let (batch_size, in_channels, in_height, in_width) =
+            (x.shape[0], x.shape[1], x.shape[2], x.shape[3]);
+        Self::validate(in_channels, self.out_channels, self.stride, self.groups);
+
+        let out_height =
+            Self::compute_out_size(in_height, self.padding, self.kernel_size, self.stride);
+        let out_width =
+            Self::compute_out_size(in_width, self.padding, self.kernel_size, self.stride);
+
+        let f_shape = [
+            self.out_channels,
+            in_channels / self.groups,
+            self.kernel_size,
+            self.kernel_size,
+        ];
+        let f_buffer = Self::compute_weights::<D::IntElem>(self, in_channels);
+        let filters = Tensor::<Integer, _>::from_array(&f_shape, &f_buffer, dev);
+
+        Ok(ConvInput {
+            out_width,
+            out_height,
+            groups: self.groups,
+            stride: self.stride,
+            padding: self.padding,
+            filters,
+            batch_size,
+            in_channels,
+            in_width,
+            in_height,
+            conv_shape: self.conv_shape,
+        })
+    }
+}
+
+impl<T: TensorType, D: Device> Conv2d<T, D> {
     fn compute_out_size(dim: usize, padding: usize, kernel_size: usize, stride: usize) -> usize {
         (dim + 2 * padding - (kernel_size - 1) - 1) / stride + 1
     }
 
-    fn init_weights(
+    fn validate(in_channels: usize, out_channels: usize, stride: usize, groups: usize) {
+        if stride < 1 {
+            panic!("The stride must be greater than zero");
+        }
+        if !in_channels.is_multiple_of(groups) || !out_channels.is_multiple_of(groups) {
+            panic!("The group size must be a multiple of the in/out channel size");
+        }
+    }
+
+    fn compute_weights<E: DataElem + SampleUniform>(
+        conv: &Conv2d<T, D>,
+        in_channels: usize,
+    ) -> Vec<E> {
+        let fan_in = conv.kernel_size * conv.kernel_size * in_channels;
+        let fan_out = conv.kernel_size * conv.kernel_size * conv.out_channels;
+        let f_size =
+            conv.out_channels * (in_channels / conv.groups) * conv.kernel_size * conv.kernel_size;
+        Self::distribute_weights::<E>(f_size, fan_in, fan_out, conv.dist_method)
+    }
+
+    fn distribute_weights<E: DataElem + SampleUniform>(
         count: usize,
         fan_in: usize,
         fan_out: usize,
         method: Option<DistributionMethod>,
-    ) -> Vec<T> {
-        let mut out = vec![T::one(); count];
+    ) -> Vec<E> {
+        let mut out = vec![E::ONE; count];
         match method {
             Some(m) => {
                 distribution::sample(fan_in, fan_out, &mut out, m);
@@ -137,24 +192,39 @@ where
     }
 }
 
-impl<T: FloatType, S: DeviceStorage<T>> ConvInput<T, S> {
-    pub fn update_weights(mut self, weights: &[T]) -> ConvInput<T, S> {
+impl<S: Device> ConvInput<Float, S> {
+    pub fn update_weights(mut self, weights: &[S::FloatElem]) -> ConvInput<Float, S> {
         self.filters =
-            Tensor::try_from_data(&self.filters.shape, weights, &self.filters.device).unwrap();
+            Tensor::<Float, _>::from_array(&self.filters.shape, weights, &mut self.filters.device);
         self
     }
 }
 
-impl<T: FloatType, D: Conv2dKernel<T>> Tensor<T, D> {
-    fn conv2d(&self, p: &ConvInput<T, D>) -> Tensor<T, D> {
+impl<S: Device> ConvInput<Integer, S> {
+    pub fn update_weights(mut self, weights: &[S::IntElem]) -> ConvInput<Integer, S> {
+        self.filters = Tensor::<Integer, _>::from_array(
+            &self.filters.shape,
+            weights,
+            &mut self.filters.device,
+        );
+        self
+    }
+}
+
+impl<T: TensorType, D: Device<Storage = D>> Tensor<T, D>
+where
+    D: Conv2dKernel<T>,
+    D: DeviceStorage,
+{
+    pub fn conv2d(&mut self, p: &ConvInput<T, D>) -> Tensor<T, D> {
         let out_shape = [p.batch_size, p.filters.shape[0], p.out_height, p.out_width];
         let out_strides = compute_strides(&out_shape);
         let to_nhwc = match p.conv_shape {
             ConvShape::Nchw => false,
             ConvShape::Nhwc => true,
         };
-        let data = D::forward(
-            &self.device,
+        let data = D::conv2d_fwd(
+            &mut self.device,
             &self.data,
             &self.shape,
             &self.strides,
@@ -170,14 +240,18 @@ impl<T: FloatType, D: Conv2dKernel<T>> Tensor<T, D> {
     }
 }
 
-impl<T: FloatType, D: ConvConvertKernel<T>> Tensor<T, D> {
-    fn im2col(&mut self, p: &ConvInput<T, D>) -> Tensor<T, D> {
+impl<T: TensorType, D: Device<Storage = D>> Tensor<T, D>
+where
+    D: ConvConvertKernel<T>,
+    D: DeviceStorage,
+{
+    pub fn im2col(&mut self, p: &ConvInput<T, D>) -> Tensor<T, D> {
         let to_nhwc = match p.conv_shape {
             ConvShape::Nchw => false,
             ConvShape::Nhwc => true,
         };
         let (data, out_shape, out_strides) = D::im2col(
-            &self.device,
+            &mut self.device,
             &self.data,
             &self.shape,
             &p.filters.shape,
@@ -191,14 +265,14 @@ impl<T: FloatType, D: ConvConvertKernel<T>> Tensor<T, D> {
         Tensor::from_parts(data, &out_shape, &out_strides, &self.device)
     }
 
-    fn nchw_to_nhwc(&mut self) -> Tensor<T, D> {
+    pub fn nchw_to_nhwc(&mut self) -> Tensor<T, D> {
         let data = D::nchw_to_nhwc(&mut self.device, &self.data, &self.shape);
         let new_shape = [self.shape[0], self.shape[2], self.shape[3], self.shape[1]];
         let new_strides = compute_strides(&new_shape);
         Tensor::from_parts(data, &new_shape, &new_strides, &self.device)
     }
 
-    fn nhwc_to_nchw(&mut self) -> Tensor<T, D> {
+    pub fn nhwc_to_nchw(&mut self) -> Tensor<T, D> {
         let data = D::nhwc_to_nchw(&mut self.device, &self.data, &self.shape);
         let new_shape = [self.shape[0], self.shape[2], self.shape[3], self.shape[1]];
         let new_strides = compute_strides(&new_shape);
@@ -206,251 +280,24 @@ impl<T: FloatType, D: ConvConvertKernel<T>> Tensor<T, D> {
     }
 }
 
-pub(crate) fn permute_nchw_to_nhwc<T: FloatType, D: DeviceStorage<T>>(
+pub fn permute_nchw_to_nhwc<T: TensorType, D: Device>(
     mut tensor: Tensor<T, D>,
-) -> Tensor<T, D> {
+) -> Tensor<T, D>
+where
+    T: DataElem,
+{
     let indices = [0, 2, 3, 1];
     tensor.permute(&indices);
     tensor
 }
 
-pub(crate) fn permute_nhwc_to_nchw<T: FloatType, D: DeviceStorage<T>>(
+pub fn permute_nhwc_to_nchw<T: TensorType, D: Device>(
     mut tensor: Tensor<T, D>,
-) -> Tensor<T, D> {
+) -> Tensor<T, D>
+where
+    T: DataElem,
+{
     let indices = [0, 3, 1, 2];
     tensor.permute(&indices);
     tensor
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use approxim::assert_abs_diff_eq;
-    use rvit_device::tests::TestDevice;
-
-    #[test]
-    fn test_permute_nchw_to_nhwc() {
-        let dev = TestDevice::default();
-        let t: Tensor<f32, _> = Tensor::try_new(&[3, 5, 4, 4], &dev).unwrap();
-        let pt = permute_nchw_to_nhwc(t);
-        assert_eq!(pt.shape, [3, 4, 4, 5]);
-        assert_eq!(pt.strides, [80, 4, 1, 16]);
-
-        let pt = permute_nhwc_to_nchw(pt);
-        assert_eq!(pt.shape, [3, 5, 4, 4]);
-        assert_eq!(pt.strides, [80, 16, 4, 1]);
-    }
-
-    #[test]
-    fn test_to_nhwc() {
-        let mut dev = TestDevice::default();
-        let data: [f32; 18] = [
-            2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 2.0, 3.0, 4.0, 5.0, 6.0,
-            7.0,
-        ];
-        let mut t = Tensor::try_from_data(&[1, 3, 2, 3], &data, &dev).unwrap();
-        let p = Conv2d::default();
-        let _conv = p.init(&t, &mut dev).unwrap();
-        let t = t.nchw_to_nhwc();
-        assert_eq!(
-            t.try_get_data().unwrap(),
-            &[
-                2.0, 4.0, 2.0, 3.0, 5.0, 3.0, 4.0, 6.0, 4.0, 1.0, 7.0, 5.0, 2.0, 8.0, 6.0, 3.0,
-                9.0, 7.0
-            ]
-        );
-    }
-
-    #[test]
-    fn test_to_nchw() {
-        let mut dev = TestDevice::default();
-        let data: [f32; 18] = [
-            2.0, 4.0, 2.0, 3.0, 5.0, 3.0, 4.0, 6.0, 4.0, 1.0, 7.0, 5.0, 2.0, 8.0, 6.0, 3.0, 9.0,
-            7.0,
-        ];
-        let mut t = Tensor::try_from_data(&[1, 2, 3, 3], &data, &dev).unwrap();
-        let p = Conv2d::default();
-        let _conv = p.init(&t, &mut dev).unwrap();
-        let t = t.nhwc_to_nchw();
-        assert_eq!(
-            t.try_get_data().unwrap(),
-            &[
-                2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 2.0, 3.0, 4.0, 5.0,
-                6.0, 7.0,
-            ]
-        );
-    }
-
-    #[test]
-    fn test_im2col_nchw() {
-        let mut dev = TestDevice::default();
-        #[rustfmt::skip]
-        let data: [f32; 18] = [
-            2.0, 3.0, 4.0, 
-            1.0, 2.0, 3.0, 
-        
-            4.0, 5.0, 6.0, 
-            7.0, 8.0, 9.0, 
-        
-            2.0, 3.0, 4.0, 
-            5.0, 6.0, 7.0,
-        ];
-        let mut t = Tensor::try_from_data(&[1, 3, 2, 3], &data, &dev).unwrap();
-        let p = Conv2d {
-            out_channels: 3,
-            ..Default::default()
-        };
-        let conv = p.init(&t, &mut dev).unwrap();
-        let v = t.im2col(&conv);
-        let res = v.try_get_data().unwrap();
-        assert_eq!(res.len(), 24); // B * OC * KH * KW * OH * OW;
-        assert_eq!(
-            &res,
-            &[
-                2.0, 3.0, 1.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0, 5.0, 7.0, 8.0, 5.0, 6.0, 8.0, 9.0,
-                2.0, 3.0, 5.0, 6.0, 3.0, 4.0, 6.0, 7.0
-            ]
-        );
-    }
-
-    #[test]
-    fn test_im2col_nchw_padding() {
-        let mut dev = TestDevice::default();
-        #[rustfmt::skip]
-        let data: [f32; 18] = [
-            2.0, 3.0, 4.0, 
-            1.0, 2.0, 3.0,
-        
-            4.0, 5.0, 6.0, 
-            7.0, 8.0, 9.0,
-        
-            2.0, 3.0, 4.0, 
-            5.0, 6.0, 7.0,
-        ];
-        let mut t = Tensor::try_from_data(&[1, 3, 2, 3], &data, &dev).unwrap();
-        let p = Conv2d {
-            out_channels: 3,
-            padding: 1,
-            ..Default::default()
-        };
-        let conv = p.init(&t, &mut dev).unwrap();
-        let v = t.im2col(&conv);
-        let res = v.try_get_data().unwrap();
-        assert_eq!(res.len(), 144); // B * OC * KH * KW * OH * OW;
-        assert_eq!(
-            &res,
-            &[
-                0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 2.0, 3.0, 0.0, 0.0, 3.0, 4.0, 0.0, 0.0, 4.0, 0.0,
-                0.0, 2.0, 0.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0, 0.0, 3.0, 0.0,
-                0.0, 1.0, 0.0, 0.0, 1.0, 2.0, 0.0, 0.0, 2.0, 3.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0,
-                0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 4.0, 5.0, 0.0, 0.0, 5.0, 6.0, 0.0, 0.0, 6.0, 0.0,
-                0.0, 4.0, 0.0, 7.0, 4.0, 5.0, 7.0, 8.0, 5.0, 6.0, 8.0, 9.0, 6.0, 0.0, 9.0, 0.0,
-                0.0, 7.0, 0.0, 0.0, 7.0, 8.0, 0.0, 0.0, 8.0, 9.0, 0.0, 0.0, 9.0, 0.0, 0.0, 0.0,
-                0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 2.0, 3.0, 0.0, 0.0, 3.0, 4.0, 0.0, 0.0, 4.0, 0.0,
-                0.0, 2.0, 0.0, 5.0, 2.0, 3.0, 5.0, 6.0, 3.0, 4.0, 6.0, 7.0, 4.0, 0.0, 7.0, 0.0,
-                0.0, 5.0, 0.0, 0.0, 5.0, 6.0, 0.0, 0.0, 6.0, 7.0, 0.0, 0.0, 7.0, 0.0, 0.0, 0.0
-            ]
-        );
-    }
-
-    #[test]
-    fn test_im2col_nchw_stride() {
-        let mut dev = TestDevice::default();
-        #[rustfmt::skip]
-        let data: [f32; 24] = [
-            3.0, 5.0, 1.0, 2.0, 
-            4.0, 2.0, 1.0, 9.0, 
-            
-            3.0, 3.0, 8.0, 3.0, 
-            4.0, 2.0, 1.0, 3.0, 
-            
-            6.0, 5.0, 7.0, 3.0, 
-            2.0, 2.0, 1.0, 0.0,
-        ];
-        let mut t = Tensor::try_from_data(&[1, 3, 2, 4], &data, &dev).unwrap();
-        let p = Conv2d {
-            out_channels: 3,
-            stride: 2,
-            ..Default::default()
-        };
-        let conv = p.init(&t, &mut dev).unwrap();
-        let v = t.im2col(&conv);
-        let res = v.try_get_data().unwrap();
-        assert_eq!(res.len(), 24); // B * OC * KH * KW * OH * OW;
-        assert_eq!(
-            &res,
-            &[
-                3.0, 5.0, 4.0, 2.0, 1.0, 2.0, 1.0, 9.0, 3.0, 3.0, 4.0, 2.0, 8.0, 3.0, 1.0, 3.0,
-                6.0, 5.0, 2.0, 2.0, 7.0, 3.0, 1.0, 0.0
-            ]
-        );
-    }
-
-    #[test]
-    fn test_conv2d() {
-        let mut dev = TestDevice::default();
-        let weight = [-0.049, -0.43, 0.019, 0.097];
-        let data = [-0.867, 0.527, -0.952, -0.645, 0.778, -0.490];
-        let t = Tensor::try_from_data(&[1, 1, 2, 3], &data, &dev).unwrap();
-        let p = Conv2d::default()
-            .init(&t, &mut dev)
-            .unwrap()
-            .update_weights(&weight);
-        let t = t.conv2d(&p);
-        assert_abs_diff_eq!(
-            &t.try_get_data().unwrap().as_ref(),
-            &[-0.120916, 0.350789].as_ref()
-        );
-    }
-
-    #[test]
-    fn test_conv2d_with_padding() {
-        let mut dev = TestDevice::default();
-        let weight = [-0.049, -0.43, 0.019, 0.097];
-        let data = [-0.867, 0.527, -0.952, -0.645, 0.778, -0.490];
-        let t = Tensor::try_from_data(&[1, 1, 2, 3], &data, &dev).unwrap();
-        let p = Conv2d {
-            padding: 1,
-            ..Default::default()
-        }
-        .init(&t, &mut dev)
-        .unwrap()
-        .update_weights(&weight);
-        let t = t.conv2d(&p);
-        #[rustfmt::skip]
-        assert_abs_diff_eq!(
-            &t.try_get_data().unwrap().as_ref(),
-            &[
-                -0.084099, 0.034646004, -0.082331, -0.018088,
-                0.310245, -0.120916, 0.35078904, 0.037338,
-                0.27735, -0.302935, 0.172578, 0.02401
-            ].as_ref()
-        );
-    }
-
-    #[test]
-    fn test_conv2d_with_stride() {
-        let mut dev = TestDevice::default();
-        let weight = [0.67, 0.13, -0.002, 0.001];
-        let data = [
-            0.563, 0.112, 0.812, -0.445, -0.999, -0.02, 0.147, 0.671, -0.310, -0.022, 0.136,
-            -0.111, 0.527, 0.007, 0.317, -0.094,
-        ];
-        let t = Tensor::try_from_data(&[2, 1, 2, 4], &data, &dev).unwrap();
-        let p = Conv2d {
-            stride: 2,
-            ..Default::default()
-        }
-        .init(&t, &mut dev)
-        .unwrap()
-        .update_weights(&weight);
-        let t = t.conv2d(&p);
-        #[rustfmt::skip]
-        assert_abs_diff_eq!(
-            &t.try_get_data().unwrap().as_ref(),
-            &[
-                0.39374804, 0.48656702, -0.21160701, 0.07596201
-            ].as_ref()
-        );
-    }
 }

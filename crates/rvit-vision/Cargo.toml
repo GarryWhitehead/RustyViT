@@ -7,19 +7,19 @@ homepage = "https://github.com/RustyViT"
 
 [features]
 default = ["cpu"]
-cpu = ["rvit-device/cpu"]
-cuda = ["rvit-device/cuda"]
+cpu = ["rvit-device/cpu", "rvit-core/cpu"]
+cuda = ["rvit-device/cuda", "rvit-core/cuda"]
 vulkan = ["rvit-device/vulkan"]
 
 [dependencies]
 rvit-core = { workspace = true }
 rvit-device = { workspace = true }
-rvit-image = { workspace = true }
-log = { workspace = true }
+rvit-testgen = { workspace = true }
+rvit-tensor = { workspace = true }
+num-traits = { workspace = true }
 rand = { workspace = true }
+paste = { workspace = true }
 
-[dev-dependencies]
-approxim = { version = "0.6.6", features = ["array_impl"] }
 
 
 

@@ -7,8 +7,7 @@ homepage = "https://github.com/RustyViT"
 
 [dependencies]
 rvit-core = { workspace = true }
-rvit-image = { workspace = true }
-log = { workspace = true }
+rvit-tensor = { workspace = true }
 rayon = { workspace = true }
 num = { workspace = true }
 rand = { workspace = true }

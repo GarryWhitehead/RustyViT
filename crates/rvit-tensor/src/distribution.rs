@@ -1,7 +1,7 @@
 use rand::distr::uniform::SampleUniform;
 use rand_distr::{Distribution, StandardNormal};
 use rand_distr::{Normal, Uniform};
-use rvit_core::type_traits::FloatType;
+use rvit_core::element_traits::DataElem;
 
 #[derive(Copy, Clone, Debug)]
 pub enum DistributionMethod {
@@ -11,7 +11,7 @@ pub enum DistributionMethod {
     Uniform,
 }
 
-pub fn sample<T: FloatType + SampleUniform>(
+pub fn sample<T: DataElem + SampleUniform>(
     fan_in: usize,
     _fan_out: usize,
     buffer: &mut [T],

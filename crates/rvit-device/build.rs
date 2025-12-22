@@ -1,7 +1,3 @@
-use shaderc::ShaderKind;
-use std::path::PathBuf;
-use std::{collections::HashMap, fs, path::Path};
-
 fn main() {
     #[cfg(feature = "cuda")]
     build_cuda();

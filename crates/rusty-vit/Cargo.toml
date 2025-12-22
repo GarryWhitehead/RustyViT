@@ -10,16 +10,15 @@ rvit-core = { workspace = true }
 rvit-tensor = { workspace = true }
 rvit-vision = { workspace = true }
 rvit-device = { workspace = true }
-num = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
 half = { workspace = true }
+paste = { workspace = true }
+num-traits = { workspace = true }
 
 [features]
 default = ["cpu"]
-cpu = ["rvit-device/cpu"]
-cuda = ["rvit-device/cuda"]
-vulkan = ["rvit-device/vulkan"]
+cpu = ["rvit-tensor/cpu", "rvit-vision/cpu"]
+cuda = ["rvit-tensor/cuda", "rvit-vision/cuda"]
+vulkan = ["rvit-tensor/vulkan", "rvit-vision/vulkan"]
 
 
 

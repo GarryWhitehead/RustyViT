@@ -1,128 +1,112 @@
-use rvit_core::storage::DeviceStorage;
+use crate::cpu::memory::*;
+use half::f16;
+use rvit_core::element_traits::{DataElem, DataType};
+use rvit_core::memory::arena::*;
+use rvit_core::memory::storage::DeviceStorage;
+use std::cell::RefCell;
 use std::fmt::Debug;
-use std::ops::Range;
-use std::{
-    error::Error,
-    ops::{Deref, DerefMut},
-};
+use std::rc::Rc;
 
-#[derive(Clone, Default)]
-pub struct Cpu {}
+type CpuArena = Arena<AlignedBuffer>;
 
-#[derive(Clone, Debug, Default)]
-pub struct VecPool<T> {
-    pub data: Vec<T>,
+#[derive(Debug)]
+pub struct Cpu {
+    arena: Rc<RefCell<CpuArena>>,
 }
 
-impl<T: num::Zero + Clone> VecPool<T> {
-    pub fn new(sz: usize) -> Self {
+impl Clone for Cpu {
+    fn clone(&self) -> Self {
         Self {
-            data: vec![T::zero(); sz],
+            arena: self.arena.clone(),
         }
     }
 }
 
-impl<T> Deref for VecPool<T> {
-    type Target = Vec<T>;
-    fn deref(&self) -> &Self::Target {
-        &self.data
+const INIT_ARENA_SIZE: usize = 1024 * 1024 * 1024;
+impl Default for Cpu {
+    fn default() -> Self {
+        Self {
+            arena: Rc::new(RefCell::new(Arena::new(INIT_ARENA_SIZE, 1))),
+        }
     }
 }
 
-impl<T> DerefMut for VecPool<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
-    }
-}
+impl DeviceStorage for Cpu {
+    type Alloc = ArenaPtr;
 
-impl<T> std::ops::Index<usize> for VecPool<T> {
-    type Output = T;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.data[index]
-    }
-}
-
-impl<T> std::ops::Index<Range<usize>> for VecPool<T> {
-    type Output = [T];
-    fn index(&self, range: Range<usize>) -> &Self::Output {
-        &self.data[range]
-    }
-}
-
-impl<T> std::ops::IndexMut<usize> for VecPool<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.data[index]
-    }
-}
-
-impl<T> std::ops::IndexMut<Range<usize>> for VecPool<T> {
-    fn index_mut(&mut self, index: Range<usize>) -> &mut Self::Output {
-        &mut self.data[index]
-    }
-}
-
-impl<T: Clone + Copy + num::Zero + Sync + Send + Debug + 'static> DeviceStorage<T> for Cpu {
-    type Vec = VecPool<T>;
-
-    fn try_alloc(&self, sz: usize) -> Result<Self::Vec, Box<dyn Error>> {
-        // Just using a simple vector for now. Will be updated to a memory pool/arena.
-        Ok(VecPool::new(sz))
+    fn try_alloc(&mut self, count: usize, dtype: DataType) -> Result<Self::Alloc, ArenaError> {
+        self.arena.borrow_mut().alloc_bytes(
+            computes_byte_size(count, dtype),
+            compute_alignment(dtype),
+            dtype,
+        )
     }
 
-    fn try_alloc_with_slice(&self, slice: &[T]) -> Result<Self::Vec, Box<dyn Error>> {
-        let mut v = VecPool::new(slice.len());
-        v.data.copy_from_slice(slice);
-        Ok(v)
+    fn try_alloc_with_bytes(
+        &mut self,
+        data: *const u8,
+        size: usize,
+        dtype: DataType,
+    ) -> Result<Self::Alloc, ArenaError> {
+        let mut ptr = self
+            .arena
+            .borrow_mut()
+            .alloc_bytes(size, compute_alignment(dtype), dtype)?;
+        ptr.copy_bytes(data, 0, size)?;
+        Ok(ptr)
     }
 
-    fn try_from_device_vec(&self, src: &Self::Vec) -> Result<Vec<T>, Box<dyn Error>> {
-        Ok(src.data.clone())
+    fn try_alloc_with_data<T: DataElem>(&mut self, data: &[T]) -> Result<Self::Alloc, ArenaError> {
+        let mut ptr = self.try_alloc(data.len(), T::DTYPE)?;
+        ptr.copy_bytes(data.as_ptr() as *const u8, 0, data.len() * size_of::<T>())?;
+        Ok(ptr)
     }
 
-    fn len(vec: &Self::Vec) -> usize {
-        vec.len()
+    fn try_alloc_zeros(
+        &mut self,
+        count: usize,
+        dtype: DataType,
+    ) -> Result<Self::Alloc, ArenaError> {
+        let mut ptr = self.try_alloc(computes_byte_size(count, dtype), dtype)?;
+        ptr.fill_zeros();
+        Ok(ptr)
     }
 
-    fn slice(v: &Self::Vec) -> &[T] {
-        v.as_slice()
+    fn try_into_vec<T: DataElem>(&self, src: &ArenaPtr) -> Result<Vec<T>, ArenaError> {
+        Ok(src.as_vec()?)
     }
 
-    fn slice_mut(v: &mut Self::Vec) -> &mut [T] {
-        v.as_mut_slice()
+    fn len(ptr: &Self::Alloc) -> usize {
+        ptr.len()
     }
 
-    fn try_sync(&self) -> Result<(), Box<dyn Error>> {
+    fn try_sync(&self) -> Result<(), ArenaError> {
         Ok(())
     }
 }
 
-/*impl<P: PixelType, F: FloatType> ToTensor<P, Self, F, Self> for Cpu {
-    fn to_tensor(
-        &mut self,
-        image: &Image<P, Self>,
-        norm: (&[F], &[F]),
-    ) -> Result<Tensor<F, Self>, Box<dyn Error>> {
-        if norm.0.len() != norm.1.len() {
-            panic!("Mean and std arrays are different lengths");
-        }
-        let mut tensor: Tensor<F, Self> = Tensor::try_new(
-            &[image.batch_size, image.channels, image.width, image.height],
-            self,
-        )?;
-
-        // Slice for [W, H, C]
-        for b in 0..image.batch_size {
-            for c in 0..image.channels {
-                for y in 0..image.height {
-                    for x in 0..image.width {
-                        let pixel: P = image[[b, c, x, y]];
-                        // f = (p[channel] - mean[channel]) / std[channel]
-                        tensor[[b, c, y, x].to_vec()] =
-                            (F::from(pixel).unwrap() - norm.0[c]) / norm.1[c];
-                    }
-                }
-            }
-        }
-        Ok(tensor)
+fn computes_byte_size(count: usize, dtype: DataType) -> usize {
+    match dtype {
+        DataType::F32 => count * size_of::<f32>(),
+        DataType::F16 => count * size_of::<f16>(),
+        DataType::U8 => count * size_of::<u8>(),
+        DataType::U16 => count * size_of::<u16>(),
+        DataType::U32 => count * size_of::<u32>(),
+        DataType::I8 => count * size_of::<i8>(),
+        DataType::I16 => count * size_of::<i16>(),
+        DataType::I32 => count * size_of::<i32>(),
     }
-}*/
+}
+
+fn compute_alignment(dtype: DataType) -> usize {
+    match dtype {
+        DataType::F32 => align_of::<f32>(),
+        DataType::F16 => align_of::<f16>(),
+        DataType::U8 => align_of::<u8>(),
+        DataType::U16 => align_of::<u16>(),
+        DataType::U32 => align_of::<u32>(),
+        DataType::I8 => align_of::<i8>(),
+        DataType::I16 => align_of::<i16>(),
+        DataType::I32 => align_of::<i32>(),
+    }
+}

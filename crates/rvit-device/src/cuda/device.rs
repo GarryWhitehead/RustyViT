@@ -98,7 +98,7 @@ impl Cuda {
     }
 }
 
-impl<T: BType> DeviceStorage<T> for Cuda {
+impl<T: Elem> DeviceStorage<T> for Cuda {
     type Vec = CudaSlice<T>;
     fn try_alloc(&self, sz: usize) -> Result<Self::Vec, Box<dyn Error>> {
         assert!(sz > 0);
@@ -129,7 +129,7 @@ impl<T: BType> DeviceStorage<T> for Cuda {
     }
 }
 
-/*trait KernelOp<P: PixelType, F: FloatType> {
+/*trait KernelOp<P: PixelType, F: DataElem> {
     const KERNEL_NAME: &'static str;
 }
 impl KernelOp<u8, f32> for Cuda {
@@ -142,7 +142,7 @@ impl KernelOp<f32, f32> for Cuda {
     const KERNEL_NAME: &'static str = "to_tensor_f32_f32_kernel";
 }
 
-impl<P: PixelType, F: FloatType> super::ToTensor<P, Self, F, Self> for Cuda
+impl<P: PixelType, F: DataElem> super::ToTensor<P, Self, F, Self> for Cuda
 where
     Self: KernelOp<P, F>,
 {

@@ -27,7 +27,6 @@ rayon = { workspace = true, optional = true }
 glob = "0.3.3"
 shaderc = "0.10.1"
 
-[dev-dependencies]
-approxim = { version = "0.6.6", features = ["array_impl"] }
+
 
 
